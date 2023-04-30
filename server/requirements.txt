@@ -1,0 +1,8 @@
+dicttoxml==1.7.16
+xmltodict==0.13.0
+google-api-python-client==2.86.0
+pyyaml==5.4.1
+dict-to-protobuf==0.0.3.10
+fastavro==1.7.3
+avro==1.11.1
+msgpack==1.0.5

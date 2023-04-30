@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<root>
+	<string>hello</string>
+	<array>0</array>
+	<array>1</array>
+	<array>2</array>
+	<array>3</array>
+	<array>4</array>
+	<array>5</array>
+	<dict>
+		<Liya>21</Liya>
+		<Gosha>20</Gosha>
+	</dict>
+	<int>1000000</int>
+	<float>0.9999</float>
+</root>

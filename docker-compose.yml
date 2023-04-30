@@ -1,0 +1,75 @@
+version: '3'
+services:
+  native:
+    build: server/
+    hostname: NATIVE
+    expose:
+      - 2001/udp
+    environment:
+      - HOST_NAME=NATIVE
+
+  xml:
+    build: server/
+    hostname: XML
+    expose:
+      - 2001/udp
+    environment:
+      - HOST_NAME=XML
+
+  json:
+    build: server/
+    hostname: JSON
+    expose:
+      - 2001/udp
+    environment:
+      - HOST_NAME=JSON
+
+  proto:
+    build: server/
+    hostname: PROTO
+    expose:
+      - 2001/udp
+    environment:
+      - HOST_NAME=PROTO
+
+  avro:
+    build: server/
+    hostname: AVRO
+    expose:
+      - 2001/udp
+    environment:
+      - HOST_NAME=AVRO
+
+  yaml:
+    build: server/
+    hostname: YAML
+    expose:
+      - 2001/udp
+    environment:
+      - HOST_NAME=YAML
+
+  msgpack:
+    build: server/
+    hostname: MSGPACK
+    expose:
+      - 2001/udp
+    environment:
+      - HOST_NAME=MSGPACK
+
+  client:
+    build: client/
+    expose:
+      - 2000/udp
+    ports:
+      - 2000:2000/udp
+    environment:
+      - PROXY_HOST=0.0.0.0
+      - PROXY_PORT=2000
+    depends_on:
+      - native
+      - xml
+      - json
+      - proto
+      - avro
+      - yaml
+      - msgpack

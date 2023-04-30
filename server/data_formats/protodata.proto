@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+message Data {
+	string string = 1;
+	repeated int64 array = 2;
+	message Dict {
+		uint32 Liya = 1;
+		uint32 Gosha = 2;
+	}
+	Dict dict = 3;
+	uint32 int = 4;
+	double float = 5;
+}
