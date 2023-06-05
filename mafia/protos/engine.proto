@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+service EngineServer {
+    rpc Join(JoinRequest) returns (JoinResponse) {}
+
+    rpc GetPlayers(GetPlayersRequest) returns (GetPlayersResponse) {}
+
+    rpc Start(StartRequest) returns (StartResponse) {}
+
+    rpc GameInfo(InfoRequest) returns (stream InfoResponse) {}
+
+    rpc GameAction(stream ActionRequest) returns (stream ActionResponse) {}
+}
+
+message JoinRequest {
+    optional string name = 1;
+    optional string text = 2;
+}
+
+message JoinResponse {
+    int32 id = 1;
+    optional string text = 2;
+}
+
+message GetPlayersRequest {
+    string name = 1;
+    optional string text = 2;
+}
+
+message GetPlayersResponse {
+    int32 count = 1;
+    string names = 2;
+    optional string text = 3;
+}
+
+message StartRequest {
+    string name = 1;
+    optional string text = 2;
+}
+
+message StartResponse {
+    bool started = 1;
+    optional string role = 2;
+    optional string text = 3;
+    optional string mafias = 4;
+}
+
+message InfoRequest {
+    string name = 1;
+    optional string text = 2;
+}
+
+message InfoResponse {
+    string text = 1;
+}
+
+message ActionRequest {
+    string name = 1;
+    optional string text = 2;
+    optional string type = 3;
+    optional string vote_name = 4;
+    optional string action_name = 5;
+}
+
+message ActionResponse {
+    optional string text = 1;
+    optional string type = 2;
+    optional string name = 3;
+    optional string mafias = 4;
+}
