@@ -14,7 +14,7 @@ import mafia.protos.engine_pb2_grpc as engine_pb2_grpc
 
 from roles import *
 
-class Player:
+class RandomPlayer:
     def __init__(self, stub: engine_pb2_grpc.EngineServerStub):
         self.stub = stub
         self.name = ''.join(random.choice(string.ascii_uppercase) for _ in range(7)) # https://stackoverflow.com/questions/2030053/how-to-generate-random-strings-in-python
@@ -41,11 +41,11 @@ class Player:
             return False
         print(self.name + ': "I got the %s role!"' % response.role)
         if response.role == 'Sheriff':
-            self.role = Sheriff(self.id, self.players)
+            self.role = Sheriff(self.id, self.players, self.name)
         elif response.role == 'Mafia':
-            self.role = Mafia(self.id, self.players, list(map(int,response.mafias.split('%'))))
+            self.role = Mafia(self.id, self.players, self.name, list(map(int,response.mafias.split('%'))))
         else:
-            self.role = Villager(self.id, self.players)
+            self.role = Villager(self.id, self.players, self.name)
         return response.started
 
     async def get_notifications(self):
@@ -99,7 +99,7 @@ async def main() -> None:
     name = ''.join(random.choice(string.ascii_uppercase) for _ in range(7)) # https://stackoverflow.com/questions/2030053/how-to-generate-random-strings-in-python
     async with grpc.aio.insecure_channel('localhost:50051') as channel:
         stub =  engine_pb2_grpc.EngineServerStub(channel)
-        player = Player(stub)
+        player = RandomPlayer(stub)
         if not await player.join():
             print('Try lately')
             return

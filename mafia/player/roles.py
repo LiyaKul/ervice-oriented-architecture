@@ -1,13 +1,14 @@
 import random
 
 class Villager:
-    def __init__(self, id, players):
+    def __init__(self, id, players, name):
         self.players_count = 4
         self.id = id - 1
         self.dead_players = []
         self.is_alive = True
         self.players = players
         self.role = 'Villager'
+        self.name = name
     
     def vote(self) -> int:
         if not self.is_alive:
@@ -24,10 +25,10 @@ class Villager:
             return
         for i in range(self.players_count):
             if self.players[i] == name:
-                if i == self.id:
-                    print(name + ': You were killed! You have the opportunity to follow the game')
-                    self.is_alive = False
                 self.dead_players.append(i)
+        if name == self.name:
+            self.is_alive = False
+            print('You was killed! Now you are the ghost! You can watch the game.')
 
     
     def action(self) -> str:
@@ -35,8 +36,8 @@ class Villager:
 
 
 class Sheriff(Villager):
-    def __init__(self, id, players):
-        super().__init__(id, players)
+    def __init__(self, id, players, name):
+        super().__init__(id, players, name)
         self.checked_players = []
         self.role = 'Sheriff'
         self.roles = dict()
@@ -58,8 +59,8 @@ class Sheriff(Villager):
             return bool(random.randint(0, 1)) # 0 - publish data, 1 - not publish data
 
 class Mafia(Villager):
-    def __init__(self, id, players, mafias = []):
-        super().__init__(id, players)
+    def __init__(self, id, players, name, mafias = []):
+        super().__init__(id, players, name)
         self.mafias = mafias
         self.role = 'Mafia'
 
