@@ -64,6 +64,11 @@ class EngineServerStub(object):
                 request_serializer=engine__pb2.PublishRequest.SerializeToString,
                 response_deserializer=engine__pb2.PublishResponse.FromString,
                 )
+        self.GameInfo = channel.unary_stream(
+                '/EngineServer/GameInfo',
+                request_serializer=engine__pb2.InfoRequest.SerializeToString,
+                response_deserializer=engine__pb2.InfoResponse.FromString,
+                )
 
 
 class EngineServerServicer(object):
@@ -129,6 +134,12 @@ class EngineServerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GameInfo(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_EngineServerServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -181,6 +192,11 @@ def add_EngineServerServicer_to_server(servicer, server):
                     servicer.PublishSheriffChecks,
                     request_deserializer=engine__pb2.PublishRequest.FromString,
                     response_serializer=engine__pb2.PublishResponse.SerializeToString,
+            ),
+            'GameInfo': grpc.unary_stream_rpc_method_handler(
+                    servicer.GameInfo,
+                    request_deserializer=engine__pb2.InfoRequest.FromString,
+                    response_serializer=engine__pb2.InfoResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -359,5 +375,22 @@ class EngineServer(object):
         return grpc.experimental.unary_unary(request, target, '/EngineServer/PublishSheriffChecks',
             engine__pb2.PublishRequest.SerializeToString,
             engine__pb2.PublishResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def GameInfo(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(request, target, '/EngineServer/GameInfo',
+            engine__pb2.InfoRequest.SerializeToString,
+            engine__pb2.InfoResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

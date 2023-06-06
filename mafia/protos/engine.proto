@@ -20,6 +20,8 @@ service EngineServer {
     rpc EndNight(EndNightRequest) returns (EndNightResponse) {}
 
     rpc PublishSheriffChecks(PublishRequest) returns (PublishResponse) {}
+
+    rpc GameInfo(InfoRequest) returns (stream InfoResponse) {}
 }
 
 message JoinRequest {
@@ -60,7 +62,8 @@ message StartResponse {
     bool started = 1;
     string role = 2;
     optional string text = 3;
-    optional string mafias = 4;
+    optional string players = 4;
+    optional string mafias = 5;
 }
 
 message InfoRequest {

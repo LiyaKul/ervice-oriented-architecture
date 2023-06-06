@@ -165,16 +165,18 @@ class StartRequest(_message.Message):
     def __init__(self, name: _Optional[str] = ..., text: _Optional[str] = ...) -> None: ...
 
 class StartResponse(_message.Message):
-    __slots__ = ["mafias", "role", "started", "text"]
+    __slots__ = ["mafias", "players", "role", "started", "text"]
     MAFIAS_FIELD_NUMBER: _ClassVar[int]
+    PLAYERS_FIELD_NUMBER: _ClassVar[int]
     ROLE_FIELD_NUMBER: _ClassVar[int]
     STARTED_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     mafias: str
+    players: str
     role: str
     started: bool
     text: str
-    def __init__(self, started: bool = ..., role: _Optional[str] = ..., text: _Optional[str] = ..., mafias: _Optional[str] = ...) -> None: ...
+    def __init__(self, started: bool = ..., role: _Optional[str] = ..., text: _Optional[str] = ..., players: _Optional[str] = ..., mafias: _Optional[str] = ...) -> None: ...
 
 class VoteRequest(_message.Message):
     __slots__ = ["name", "text", "vote_name"]

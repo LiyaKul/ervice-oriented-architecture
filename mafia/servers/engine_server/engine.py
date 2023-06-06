@@ -16,6 +16,12 @@ import mafia.protos.engine_pb2 as engine_pb2
 import mafia.protos.engine_pb2_grpc as engine_pb2_grpc
 
 from game import *
+from enum import Enum
+
+class Message:
+    def __init__(self, type, text):
+        self.type = type
+        self.text = text
 
 class EngineServer(engine_pb2_grpc.EngineServer):
 
@@ -27,6 +33,8 @@ class EngineServer(engine_pb2_grpc.EngineServer):
         self.player_to_game = dict()
         self.end_cond = dict()
         self.start_cond = dict()
+
+        self.messages = dict()
 
     def set_roles_indexes(self, game_index: int):
         self.games[game_index].set_role_indexes()
@@ -47,6 +55,7 @@ class EngineServer(engine_pb2_grpc.EngineServer):
         game = self.games[-1]
         self.end_cond[game.id] = asyncio.Condition()
         self.start_cond[game.id] = asyncio.Condition()
+        self.messages[game.id] = []
     
     def get_game(self, name):
         if name in self.player_to_game.keys():
@@ -85,6 +94,7 @@ class EngineServer(engine_pb2_grpc.EngineServer):
         del self.players[request.name]
         game = self.get_game(request.name)
         game.leave(request.name)
+        self.messages[game.id].append(Message('info', request.name + ' left game'))
         return engine_pb2.LeaveResponse(text='You left the game.')
 
     async def GetPlayers(self, request: engine_pb2.GetPlayersRequest, unused_context) -> engine_pb2.GetPlayersResponse:
@@ -101,33 +111,48 @@ class EngineServer(engine_pb2_grpc.EngineServer):
             return engine_pb2.StartResponse(started=False, text='Game ended, try lately')
         result = game.inc_start(request.name)
         if result == 'wait':
+            self.messages[game.id].append(Message('info', request.name + ' ready to start!'))
             logging.info('GAME №' + str(game.id) + ': ' + request.name + ' ready to start!')
             async with self.start_cond[game.id]:
                 await self.start_cond[game.id].wait()
         elif result == 'start':
             game.set_roles()
+            self.messages[game.id].append(Message('info', request.name + ' ready to start!'))
             logging.info('GAME №' + str(game.id) + ': ' + request.name + ' ready to start!')
             async with self.start_cond[game.id]:
                 self.start_cond[game.id].notify_all()
+            self.messages[game.id].append(Message('info', '%d players are recruited, starting game...' % game.count()))
             logging.info('GAME №' + str(game.id) + ': %d players are recruited, starting game...' % game.count())
-            print(game.roles)
+            self.messages[game.id].append(Message('info', 'roles assignment...'))
             logging.info('GAME №' + str(game.id) + ': roles assignment...')
         else:
             return engine_pb2.StartResponse(started=False, text=result)
 
-        print(game.roles)
         role = game.roles[request.name]
+        self.messages[game.id].append(Message('info', 'The game starts!'))
         if role == 'Mafia':
-            return engine_pb2.StartResponse(started=True, role=role, text='Game is starting!', mafias='%'.join(game.mafias))
-        return engine_pb2.StartResponse(started=True, role=role, text='Game is starting!')
+            return engine_pb2.StartResponse(started=True, role=role, text='The game starts!', players='%'.join(game.players), mafias='%'.join(game.mafias))
+        return engine_pb2.StartResponse(started=True, role=role, text='The game starts!', players='%'.join(game.players))
     
-    # async def GameInfo(self, request: engine_pb2.InfoRequest, unused_context) -> AsyncIterable[engine_pb2.InfoResponse]:
-    #     game = self.get_game(request.name)
-    #     async for notification in game.notifications():
-    #         yield engine_pb2.InfoResponse(
-    #             type=notification.type,
-    #             text=notification.text
-    #         )
+    async def generate_messages(self, game_id):
+        current_index = 0
+        while True:
+            if len(self.messages[game_id]) > 0 and self.messages[game_id][-1] == 'end':
+                break
+            if current_index >= len(self.messages[game_id]):
+                await asyncio.sleep(0)
+                continue
+            yield self.messages[game_id][current_index]
+            current_index += 1
+            
+    
+    async def GameInfo(self, request: engine_pb2.InfoRequest, unused_context) -> AsyncIterable[engine_pb2.InfoResponse]:
+        game_id = self.get_game(request.name).id
+        async for message in self.generate_messages(game_id):
+            yield engine_pb2.InfoResponse(
+                type=message.type,
+                text=message.text
+            )
     
     async def Kill(self, request: engine_pb2.KillRequest, unused_context) -> engine_pb2.KillResponse:
         if not self.check_game(request.name):
@@ -168,8 +193,10 @@ class EngineServer(engine_pb2_grpc.EngineServer):
             async with self.end_cond[game.id]:
                 await self.end_cond[game.id].wait()
             if vote_name == '':
+                self.messages[game.id].append(Message('info', "The day's vote failed. Peace day is declared.\nThe city goes to sleep, the mafia wakes up..."))
                 return engine_pb2.EndDayResponse(ended=True, text="The day's vote failed. Peace day is declared.\nThe city goes to sleep, the mafia wakes up...")
             else:
+                self.messages[game.id].append(Message('death', "Results of the day's voting: " + vote_name + " was killed!\nThe city goes to sleep, the mafia wakes up...", dead_player_name=vote_name))
                 return engine_pb2.EndDayResponse(ended=True, text= ": Results of the day's voting: " + vote_name + " was killed!\nThe city goes to sleep, the mafia wakes up...")
         elif result == 'start':
             logging.info('GAME №' + str(game.id) + ': ' + request.name + ' all alive players want to end day!')
@@ -178,23 +205,28 @@ class EngineServer(engine_pb2_grpc.EngineServer):
             game.set_night()
             vote_name = game.vote_or_kill_result()
             if vote_name == '':
+                self.messages[game.id].append(Message('info', "The day's vote failed. Peace day is declared.\nThe city goes to sleep, the mafia wakes up..."))
                 logging.info('GAME №' + str(game.id) + ": The day's vote failed. Peace day is declared.")
                 logging.info('GAME №' + str(game.id) + ": The city goes to sleep, the mafia wakes up...")
                 return engine_pb2.EndDayResponse(ended=True, text="The day's vote failed. Peace day is declared.\nThe city goes to sleep, the mafia wakes up...")
             else:
+                self.messages[game.id].append(Message('death', "Results of the day's voting: " + vote_name + " was killed!\nThe city goes to sleep, the mafia wakes up..."))
                 game.append_dead_player(vote_name)
                 alive_mafias, alive_villagers = game.check_end()
                 logging.info('GAME №' + str(game.id) + ": Alive mafias: " + alive_mafias)
                 logging.info('GAME №' + str(game.id) + ": Alive villagers: " + alive_villagers)
                 if alive_mafias >= alive_villagers:
                     game.set_end()
+                    self.messages[game.id].append(Message('end', "Mafia wins! Game ended."))
                     logging.info('GAME №' + str(game.id) + ': Mafia wins! Game ended.')
                     return engine_pb2.EndDayResponse(ended=True, text='Mafia wins! Game ended.')
                 if alive_mafias == 0:
                     game.set_end()
+                    self.messages[game.id].append(Message('end', "Villagers wins! Game ended."))
                     logging.info('GAME №' + str(game.id) + ': Villagers wins! Game ended.')
                     return engine_pb2.EndDayResponse(ended=True, text='Villagers wins! Game ended.')
-                logging.info('GAME №' + str(game.id) + ": The city goes to sleep, the mafia wakes up...")
+                self.messages[game.id].append(Message('end', "Villagers wins! Game ended."))
+                logging.info('GAME №' + str(game.id) + "The city goes to sleep, the mafia wakes up...")
                 return engine_pb2.EndDayResponse(ended=True, text="The city goes to sleep, the mafia wakes up...")
         else:
             return engine_pb2.EndDayResponse(ended=False, text=result)
@@ -204,9 +236,10 @@ class EngineServer(engine_pb2_grpc.EngineServer):
             return engine_pb2.KillResponse(text='You are not in game.')
         game = self.get_game(request.name)
         result = game.publish()
+        # TODO
         if type(result) == str:
             return engine_pb2.PublishResponse(result=False, text=result)
-        # TODO notification
+        self.messages[game.id].append(Message('publish', result))
         return engine_pb2.PublishResponse(result=True)
 
     async def EndNight(self, request: engine_pb2.EndNightRequest, unused_context) -> engine_pb2.EndNightResponse:
@@ -221,18 +254,22 @@ class EngineServer(engine_pb2_grpc.EngineServer):
                 await self.end_cond[game.id].wait()
             kill_name = game.vote_or_kill_result()
             if kill_name == '':
+                self.messages[game.id].append(Message('info', "The mafia couldn't make a choice\nThe mafia goes to sleep, the city wakes up..."))
                 return engine_pb2.EndNightResponse(ended=True, text="The mafia couldn't make a choice\nThe mafia goes to sleep, the city wakes up...")
             else:
-                return engine_pb2.EndNightResponse(ended=True, text=  kill_name + " was killed tonight!\nThe mafia goes to sleep, the city wakes up...")
+                self.messages[game.id].append(Message('death', kill_name + " was killed tonight!\nThe mafia goes to sleep, the city wakes up..."))
+                return engine_pb2.EndNightResponse(ended=True, text= kill_name + " was killed tonight!\nThe mafia goes to sleep, the city wakes up...")
         elif result == 'start':
             async with self.end_cond[game.id]:
                 self.end_cond[game.id].notify_all()
                 kill_name = game.vote_or_kill_result()
                 if kill_name == '':
+                    self.messages[game.id].append(Message('info', "The mafia couldn't make a choice\nThe mafia goes to sleep, the city wakes up..."))
                     logging.info('GAME №' + str(game.id) +  ": The mafia couldn't make a choice")
                     logging.info('GAME №' + str(game.id) + ": The mafia goes to sleep, the city wakes up...")
                     return engine_pb2.EndNightResponse(ended=True, text="The mafia couldn't make a choice\nThe mafia goes to sleep, the city wakes up...")
                 else:
+                    self.messages[game.id].append(Message('death', kill_name + 'was killed tonight!'))
                     logging.info('GAME №' + game.id +  ": %s was killed tonight!" % kill_name)
                     game.append_dead_player(kill_name)
                     alive_mafias, alive_villagers = game.check_end()
@@ -240,12 +277,15 @@ class EngineServer(engine_pb2_grpc.EngineServer):
                     logging.info('GAME №' + str(game.id) + ": Alive villagers: " + alive_villagers)
                     if alive_mafias >= alive_villagers:
                         game.set_end()
+                        self.messages[game.id].append(Message('end', 'Mafia wins! Game ended.'))
                         logging.info('GAME №' + str(game.id) + ': Mafia wins! Game ended.')
                         return engine_pb2.EndNightResponse(ended=True, text='Mafia wins! Game ended.')
                     if alive_mafias == 0:
                         game.set_end()
+                        self.messages[game.id].append(Message('end', 'Villagers wins! Game ended.'))
                         logging.info('GAME №' + str(game.id) + ': Villagers wins! Game ended.')
                         return engine_pb2.EndNightResponse(ended=True, text='Villagers wins! Game ended.')
+                    self.messages[game.id].append(Message('info', 'The mafia goes to sleep, the city wakes up...'))
                     logging.info('GAME №' + str(game.id) + ": The mafia goes to sleep, the city wakes up...")
                     return engine_pb2.EndNightResponse(ended=True, text="The mafia goes to sleep, the city wakes up...")
         else:
