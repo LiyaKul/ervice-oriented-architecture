@@ -19,22 +19,21 @@ from game import *
 
 class EngineServer(engine_pb2_grpc.EngineServer):
 
-    def __init__(self) -> None:
+    def __init__(self, players_count = 4) -> None:
         self.players = dict()
         self.current_id = 0
-        self.cond = asyncio.Condition()
-        self.players_count = 4
+        self.players_count = players_count
         self.games = []
         self.player_to_game = dict()
 
     def set_roles_indexes(self, game_index: int):
-        logging.info('roles assignment...')
         self.games[game_index].set_role_indexes()
 
-    def check_game_end(self, game_index) -> str:
+    def check_game_end(self, game_index, name) -> str:
         alive_mafias, alive_villagers = self.games[game_index].check_game_end()
-        logging.info('Alive mafias: ' + str(alive_mafias))
-        logging.info('Alive villagers: ' + str(alive_villagers))
+        if self.games[game_index].log_name == name:
+            logging.info('GAME №' + str(game_index) + ': Alive mafias: ' + str(alive_mafias))
+            logging.info('GAME №' + str(game_index) + ': Alive villagers: ' + str(alive_villagers))
         if alive_mafias == 0:
             return 'Villagers'
         if alive_mafias >= alive_villagers:
@@ -43,17 +42,17 @@ class EngineServer(engine_pb2_grpc.EngineServer):
     
     def get_game(self, name):
         if name in self.player_to_game.keys():
-            return self.player_to_game[name]
+            return self.games[self.player_to_game[name]]
         for game in self.games:
             if not game.is_full:
                 game.append_player(name)
                 self.player_to_game[name] = game.id
-                return game.id
-        self.games.append(Game(len(self.games())))
+                return game
+        self.games.append(Game(len(self.games)))
         game = self.games[-1]
         game.append_player(name)
         self.player_to_game[name] = game.id
-        return game.id
+        return game
 
 
     async def Join(self, request: engine_pb2.JoinRequest, unused_context) -> engine_pb2.JoinResponse:
@@ -62,11 +61,11 @@ class EngineServer(engine_pb2_grpc.EngineServer):
         if request.name in self.players.values():
             return engine_pb2.JoinResponse(id=-1, text='You have been joined!')
 
-        if self.status == State.ENDED:
+        if game.status == State.ENDED:
             return engine_pb2.JoinResponse(id=-1, text='Game ended, try lately!')
         
         self.current_id += 1
-        if len(game.players)> 1:
+        if len(game.players) > 1:
             game.current_message = request.name + ' joined!'
             async with game.notify_cond:
                 game.notify_cond.notify_all()
@@ -74,135 +73,149 @@ class EngineServer(engine_pb2_grpc.EngineServer):
 
     async def GetPlayers(self, request: engine_pb2.GetPlayersRequest, unused_context) -> engine_pb2.GetPlayersResponse:
         logging.info(request.name + ' want to get list of players')
-        return engine_pb2.GetPlayersResponse(count=len(self.players), text='Players', names='%'.join(_ for _ in self.players.keys()))
+        game = self.get_game(request.name)
+        return engine_pb2.GetPlayersResponse(count=len(self.players), text='Players', names='%'.join(_ for _ in game.players))
 
     async def Start(self, request: engine_pb2.StartRequest, unused_context) -> engine_pb2.StartResponse:
         logging.info(request.name + ' ready to start!')
-        if self.status == State.ENDED:
+        game = self.get_game(request.name)
+        if game.status == State.ENDED:
             return engine_pb2.StartResponse(started=False, text='Game ended, try lately!')
-        self.current_message = request.name + ' ready to start!'
-        async with self.notify_cond:
-            self.notify_cond.notify_all()
-        if len(self.players) == 4:
-            logging.info('%d players are recruited, starting game...' % len(self.players))
-            self.status = State.STARTED
-            self.set_roles_indexes()
-            async with self.cond:
-                self.cond.notify_all()
+        game.current_message = request.name + ' ready to start!'
+        game.start_count += 1
+        async with game.notify_cond:
+            game.notify_cond.notify_all()
+        if game.start_count == game.max_players:
+            logging.info('%d players are recruited, starting game...' % game.start_count)
+            game.status = State.STARTED
+            logging.info('roles assignment...')
+            game.set_roles_indexes()
+            async with game.cond:
+                game.cond.notify_all()
         else:
-            async with self.cond:
-                await self.cond.wait()
-        role = self.roles_indexes[self.players[request.name]-1]
+            async with game.cond:
+                await game.cond.wait()
+        role = game.roles[request.name]
         if role == 'Mafia':
-            return engine_pb2.StartResponse(started=True, role=role, text='Game is starting!', mafias='%'.join(self.mafias))
+            return engine_pb2.StartResponse(started=True, role=role, text='Game is starting!', mafias='%'.join(game.mafias))
         return engine_pb2.StartResponse(started=True, role=role, text='Game is starting!')
     
-    async def GameInfo(self, unused_request: engine_pb2.InfoRequest, unused_context) -> AsyncIterable[engine_pb2.InfoResponse]:
-        while self.status != State.STARTED:
-            async with self.notify_cond:
-                await self.notify_cond.wait()
-            yield engine_pb2.InfoResponse(text=self.current_message)
+    async def GameInfo(self, request: engine_pb2.InfoRequest, unused_context) -> AsyncIterable[engine_pb2.InfoResponse]:
+        game = self.get_game(request.name)
+        while game.status != State.STARTED:
+            async with game.notify_cond:
+                await game.notify_cond.wait()
+            yield engine_pb2.InfoResponse(text=game.current_message)
     
     async def GameAction(self, request_iterator: AsyncIterable[engine_pb2.ActionRequest], unused_context) -> AsyncIterable[engine_pb2.ActionResponse]:
-        yield engine_pb2.ActionResponse(text='Game started!', type='day')
+        yield engine_pb2.ActionResponse(text='Game started! No voting on the first day.', type='')
+        yield engine_pb2.ActionResponse(text='The city goes to sleep, the mafia wakes up...', type='night')
         async for request in request_iterator:
-            if self.status == State.ENDED:
+            # logging.info('!!! ' + request.type)
+
+            game = self.get_game(request.name)
+            game_name = 'GAME №' + str(game.id)
+            if game.status == State.ENDED:
                 break
-            if self.game_count > 10 * self.players_count:
-                logging.info('Too many iterations, game is ending...')
-                self.status = State.ENDED
+            if game.actions_count == 0:
+                game.log_name = request.name
+            if game.day_count == 0:
+                if game.log_name == request.name:
+                    logging.info(game_name + ': Game started! No voting on the first day.')
+                    logging.info(game_name + ': The city goes to sleep, the mafia wakes up...')
+            if game.actions_count > 10 * game.max_players:
+                if request.vote_name == '':
+                    logging.info(game_name +': Too many iterations, game is ending...')
+                game.status = State.ENDED
                 yield engine_pb2.ActionResponse(text='Draw! Game ended.', type='end')
                 continue
 
             if request.text == 'Vote!':
                 if request.vote_name == '':
-                    logging.info(request.name + ' is undecided about the player to vote!')
+                    logging.info(game_name + ': ' + request.name + ' is undecided about the player to vote!')
                 else:
-                    self.handle_vote(request)
-                    logging.info(request.name + ' vote for ' + request.vote_name + '!')
+                    game.handle_vote(request)
+                    logging.info(game_name + ': ' + request.name + ' vote for ' + request.vote_name + '!')
             elif request.text == 'Kill!':
                 if request.action_name == '':
-                    logging.info(request.name + ' is undecided about the player to kill!')
+                    logging.info(game_name + ': ' + request.name + ' is undecided about the player to kill!')
                 else:
-                    self.handle_vote(request)
-                    logging.info(request.name + ' want to kill ' + request.action_name + '!')
+                    game.handle_vote(request)
+                    logging.info(game_name + ': ' + request.name + ' want to kill ' + request.action_name + '!')
             elif request.text == 'Check!':
                 if request.action_name == '':
-                    logging.info(request.name + ' is undecided about the player to check!')
+                    logging.info(game_name + ': ' + request.name + ' is undecided about the player to check!')
                 else:
-                    logging.info(request.name + ' want to check ' + request.action_name + '!')
-                    yield engine_pb2.ActionResponse(text=self.roles[request.action_name], type='check')
-                    self.checks += '%' + request.action_name + ' ' + self.roles[request.action_name]
+                    logging.info(game_name + ': ' + request.name + ' want to check ' + request.action_name + '!')
+                    yield engine_pb2.ActionResponse(text=game.roles[request.action_name], type='check')
+                    game.checks += '%' + request.action_name + ' ' + game.roles[request.action_name]
             elif request.text == 'Publish!':
-                self.is_publish = True
+                game.is_publish = True
 
-            # if request.type != self.type:
-            #     yield engine_pb2.ActionResponse(text='Incorrect message!', name='')
-            #     continue
-            self.actions_count += 1
-            if self.actions_count < self.players_count:
-                async with self.action_cond:
-                    await self.action_cond.wait()
-                if self.is_publish:
-                    if self.log_name == request.name:
-                        logging.info("The sheriff decided to share the results of the checks!")
-                    yield engine_pb2.ActionResponse(text="The sheriff decided to share the results of the checks!", type='publish', name=self.checks)
+            game.actions_count += 1
+            if game.actions_count < game.max_players:
+                async with game.action_cond:
+                    await game.action_cond.wait()
+                if game.is_publish:
+                    if game.log_name == request.name:
+                        logging.info(game_name + ': ' + "The sheriff decided to share the results of the checks!")
+                    yield engine_pb2.ActionResponse(text="The sheriff decided to share the results of the checks!", type='publish', name=game.checks)
             else:
-                self.game_count += 1
-                self.vote_name = self.vote_result()
-                self.actions_count = 0
-                self.votes = dict()
-                self.log_name = request.name
-                async with self.action_cond:
-                    self.action_cond.notify_all()
-                if self.is_publish:
+                game.vote_name = game.vote_result()
+                game.actions_count = 0
+                game.votes = dict()
+                async with game.action_cond:
+                    game.action_cond.notify_all()
+                if game.is_publish:
                     yield engine_pb2.ActionResponse(text="The sheriff decided to share the results of the inspections!", type='publish')
-            if self.type == 'day':
+            if game.type == 'day':
                 # DAY
-                if self.vote_name == '':
-                    if self.log_name == request.name:
-                        logging.info("The day's vote failed. Peace day is declared.")
+                if game.vote_name == '':
+                    if game.log_name == request.name:
+                        logging.info(game_name + ': ' + "The day's vote failed. Peace day is declared.")
                     yield engine_pb2.ActionResponse(text="The day's vote failed. Peace day is declared.", type='')
                 else:
-                    logging.info(request.name + ": Results of the day's voting: " + self.vote_name + " was killed!" )
-                    self.dead_players.append(self.vote_name)
-                    yield engine_pb2.ActionResponse(text="Results of the day's voting: " + self.vote_name + " was killed!" , type='', name=self.vote_name)
+                    if game.log_name == request.name:
+                        logging.info(game_name + ": Results of the day's voting: " + game.vote_name + " was killed!" )
+                    game.dead_players.append(game.vote_name)
+                    yield engine_pb2.ActionResponse(text="Results of the day's voting: " + game.vote_name + " was killed!" , type='', name=game.vote_name)
             else:
                 # NIGHT
-                if self.vote_name == '':
-                    if self.log_name == request.name:
-                        logging.info(request.name + ": The mafia couldn't make a choice")
+                if game.vote_name == '':
+                    if game.log_name == request.name:
+                        logging.info(game_name + ": The mafia couldn't make a choice")
                     yield engine_pb2.ActionResponse(text="The mafia couldn't make a choice", type='')
                 else:
-                    self.dead_players.append(self.vote_name)
-                    if self.log_name == request.name:
-                        logging.info("%s was killed tonight!" % self.vote_name)
-                    yield engine_pb2.ActionResponse(text="%s was killed tonight!" % self.vote_name, type='', name=self.vote_name)
-            if self.check_game_end() != '':
-                self.status = State.ENDED
-                if self.check_game_end() == 'Mafias':
-                    if self.log_name == request.name:
-                        logging.info(": Mafia wins! Game ended.")
+                    game.dead_players.append(game.vote_name)
+                    if game.log_name == request.name:
+                        logging.info(game_name + ": %s was killed tonight!" % game.vote_name)
+                    yield engine_pb2.ActionResponse(text="%s was killed tonight!" % game.vote_name, type='', name=game.vote_name)
+            check_game = self.check_game_end(game.id, request.name)
+            if check_game != '':
+                game.status = State.ENDED
+                if check_game == 'Mafias':
+                    if game.log_name == request.name:
+                        logging.info(game_name +  ": Mafia wins! Game ended.")
                     yield engine_pb2.ActionResponse(text='Mafia wins! Game ended.', type='end')
                     continue
                 else:
-                    logging.info(request.name + ": Villagers wins! Game ended.")
+                    if request.vote_name == '':
+                        logging.info(game_name + ": Villagers wins! Game ended.")
                     yield engine_pb2.ActionResponse(text='Villagers wins! Game ended.', type='end')
                     continue
             else:
-                if self.type == 'day':
-                    if self.log_name == request.name:
-                        logging.info('The city goes to sleep, the mafia wakes up...')
+                if game.type == 'day':
+                    if game.log_name == request.name:
+                        game.type = 'night'
+                        game.day_count += 1
+                        logging.info(game_name + ': The city goes to sleep, the mafia wakes up...')
                     yield engine_pb2.ActionResponse(text='The city goes to sleep, the mafia wakes up...', type='night')
                 else:
-                    if self.log_name == request.name:
-                        logging.info(': The mafia goes to sleep, the city wakes up...')
+                    if game.log_name == request.name:
+                        game.type = 'day'
+                        game.day_count += 1
+                        logging.info(game_name + ': The mafia goes to sleep, the city wakes up...')
                     yield engine_pb2.ActionResponse(text='The mafia goes to sleep, the city wakes up...', type='day')
-            if self.log_name == request.name:
-                if self.type == 'day':
-                    self.type = 'night'
-                else:
-                    self.type = 'day'
 
 async def serve():
     server = grpc.aio.server(futures.ThreadPoolExecutor(max_workers=10))

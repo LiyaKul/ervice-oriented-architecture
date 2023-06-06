@@ -43,7 +43,7 @@ class RandomPlayer:
         if response.role == 'Sheriff':
             self.role = Sheriff(self.id, self.players, self.name)
         elif response.role == 'Mafia':
-            self.role = Mafia(self.id, self.players, self.name, list(map(int,response.mafias.split('%'))))
+            self.role = Mafia(self.id, self.players, self.name, list(response.mafias.split('%')))
         else:
             self.role = Villager(self.id, self.players, self.name)
         return response.started
@@ -63,16 +63,16 @@ class RandomPlayer:
             type = self.request_type
             if type == 'day':
                 yield engine_pb2.ActionRequest(name=self.name, text='Vote!', type=type, vote_name=self.role.vote())
-            if type == 'check':
+            elif type == 'check':
                 if self.role.check_result(self.check_name):
                     yield engine_pb2.ActionRequest(name=self.name, text='Publish', type=type)
             elif type == 'publish':
                 print("The results of the Sheriff's checks:")
                 for x in self.checks.split('%'):
                     print(x.split()[0], ':', x.split()[1])
-            elif self.role.role == 'Mafia':
+            elif type == 'night' and self.role.role == 'Mafia':
                 yield engine_pb2.ActionRequest(name=self.name, text='Kill!', type=type, action_name=self.role.action())
-            elif self.role.role == 'Sheriff':
+            elif type == 'night' and  self.role.role == 'Sheriff':
                 yield engine_pb2.ActionRequest(name=self.name, text='Check!', type=type, action_name=self.role.action())
             else:
                 yield engine_pb2.ActionRequest(name=self.name, text='Sleep!', type=type)
@@ -83,7 +83,9 @@ class RandomPlayer:
         async for message in notifications:
             self.request_type = message.type
             self.role.new_dead(message.name)
-            print(self.name + ': "'+ message.text +'"')
+            print(message.type)
+            if message.type != 'check':
+                print(self.name + ': "'+ message.text +'"')
             if message.type == 'check':
                 self.check_name = message.text
             if message.type == 'publish':

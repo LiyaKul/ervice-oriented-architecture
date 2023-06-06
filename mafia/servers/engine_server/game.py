@@ -14,47 +14,51 @@ class Game:
     def __init__(self, id, max_players = 4):
         self.id = id
         self.max_players = max_players
-        self.players = dict()
+        self.players = []
+        self.start_count = 0
         self.is_full = False
         self.status = State.PENDING
         self.current_message = ''
-        self.roles_indexes = ['Sheriff', 'Mafia', 'Villager', 'Villager']
+        self.roles_names = ['Sheriff', 'Mafia', 'Villager', 'Villager']
         self.mafias = []
         self.actions_count = 0
         self.dead_players = []
-        self.type = 'day'
+        self.type = 'night'
         self.action_cond = asyncio.Condition()
         self.votes = dict()
         self.first_player = ''
         self.vote_name = ''
-        self.game_count = 0
         self.log_name = ''
         self.roles = dict()
         self.is_publish = False
         self.checks = str()
         self.notify_cond = asyncio.Condition()
+        self.cond = asyncio.Condition()
+        self.day_count = 0
 
 
     def get_status(self):
         return self.status
     
-    def append_player(self, name, id) -> bool:
+    def append_player(self, name) -> bool:
         if self.is_full:
             return False
-        self.players[name] = id
+        self.players.append(name)
         if len(self.players) == self.max_players:
             self.is_full = True
         return True
     
     def set_roles_indexes(self):
-        random.shuffle(self.roles_indexes)
-        for i in range(len(self.roles_indexes)):
-            if self.roles_indexes[i] == 'Mafia':
-                self.mafias.append(str(i+1))
-        for name, id in self.players.items():
-            self.roles[name] = self.roles_indexes[id - 1]
+        random.shuffle(self.roles_names)
+        for i in range(len(self.players)):
+            self.roles[self.players[i]] = self.roles_names[i]
+            if self.roles_names[i] == 'Mafia':
+                self.mafias.append(self.players[i])
+            
     
     def handle_vote(self, request: engine_pb2.ActionRequest) -> None:
+        if request.name in self.dead_players:
+            return
         if request.vote_name != '':   
             if request.vote_name in self.dead_players:
                 return
@@ -63,7 +67,7 @@ class Game:
             else:
                 self.votes[request.vote_name] = 1
         elif request.action_name != '':
-            if self.type == 'night' and self.roles_indexes[self.players[request.name]-1] != 'Mafia':
+            if self.roles[request.name] != 'Mafia':
                 return
             if request.action_name in self.votes.keys():
                 self.votes[request.action_name] += 1
@@ -82,17 +86,16 @@ class Game:
             if max_name != name and max_count == count:
                 print(self.votes, max_name)
                 return ''
-        print(self.votes, max_name)
         return max_name
 
 
     def check_game_end(self) -> tuple:
         alive_mafias = 0
         alive_villagers = 0
-        for name in self.players.keys():
+        for name in self.players:
             if name in self.dead_players:
                 continue
-            if self.role[name] == 'Mafia':
+            if self.roles[name] == 'Mafia':
                 alive_mafias += 1
             else:
                 alive_villagers += 1

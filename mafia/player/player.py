@@ -16,6 +16,7 @@ from roles import *
 
 class Player:
     def __init__(self, stub: engine_pb2_grpc.EngineServerStub):
+        self.id = -1
         self.stub = stub
         self.request_type = 'day'
         self.action_cond = asyncio.Condition()
@@ -44,7 +45,7 @@ class Player:
         if response.role == 'Sheriff':
             self.role = Sheriff(self.id, self.players, self.name)
         elif response.role == 'Mafia':
-            self.role = Mafia(self.id, self.players, self.name, list(map(int,response.mafias.split('%'))))
+            self.role = Mafia(self.id, self.players, self.name, list(response.mafias.split('%')))
         else:
             self.role = Villager(self.id, self.players, self.name)
         return response.started
@@ -62,7 +63,6 @@ class Player:
             async with self.action_cond:
                 await self.action_cond.wait()
             type = self.request_type
-            print("TYTPE", type)
             if type == 'publish':
                 print("The results of the Sheriff's checks:")
                 for x in self.checks.split('%'):
@@ -81,6 +81,9 @@ class Player:
                     name = input()
                 yield engine_pb2.ActionRequest(name=self.name, text='Vote!', type=type, vote_name=name)
             elif type == 'check':
+                if self.role.check_result(self.check_name):
+                    yield engine_pb2.ActionRequest(name=self.name, text='Publish', type=type)
+            elif type == 'check':
                 print('Check results.', self.check_name, 'was', self.check_result)
                 name = input()
                 if self.role.check_result(self.check_result):
@@ -88,12 +91,10 @@ class Player:
                     answer = input()
                     if answer.lower() == 'yes':
                         yield engine_pb2.ActionRequest(name=self.name, text='Publish', type=type)
-
-            elif self.role.role == 'Mafia':
+            elif type == 'night' and self.role.role == 'Mafia':
                 print('Choose a mafia victim.')
                 name = input()
                 while name not in self.players or name == self.name or name in self.role.dead_players or name in self.role.mafias:
-                    print('!!', name)
                     if name == self.name:
                         print("You can't kill yourself. Choose another name. List of players:", self.players)
                     elif name not in self.players:
@@ -104,7 +105,7 @@ class Player:
                         print("Incorrect name. You can't choose another mafia. List of the mafias:", self.role.mafias)
                     name = input()
                 yield engine_pb2.ActionRequest(name=self.name, text='Kill!', type=type, action_name=name)
-            elif self.role.role == 'Sheriff':
+            elif type == 'night' and self.role.role == 'Sheriff':
                 print('Choose a player to check the role.')
                 name = input()
                 while name not in self.players or name == self.name or name in self.role.dead_players:
@@ -118,32 +119,30 @@ class Player:
                 self.check_name = name
                 yield engine_pb2.ActionRequest(name=self.name, text='Check!', type=type, action_name=name)
             else:
-                yield engine_pb2.ActionRequest(name=self.name, text='Sleep!', type=type)
+                yield engine_pb2.ActionRequest(name=self.name, text='Sleep!', type='')
         
     async def game_actions(self):
         notifications = self.stub.GameAction(self.generate_messages()) 
         
         async for message in notifications:
-            self.request_type = message.type
+            print(message.type)
+            if message.type != 'check':
+                print(self.name + ': "'+ message.text +'"')
             if message.name in self.players:
                 self.role.new_dead(message.name)
-            if message.type == '':
-                print(self.name + ': "'+ message.text +'"')
-                continue
-            print(self.name + ': "'+ message.text +'"')
             if message.type == 'check':
                 self.check_result = message.text
             if message.type == 'publish':
                 print("The results of the Sheriff's checks:")
                 self.checks = message.name
             async with self.action_cond:
+                self.request_type = message.type
                 self.action_cond.notify()
             if message.type == 'end':
                 break
 
 
 async def main() -> None:
-    name = ''.join(random.choice(string.ascii_uppercase) for _ in range(7)) # https://stackoverflow.com/questions/2030053/how-to-generate-random-strings-in-python
     async with grpc.aio.insecure_channel('localhost:50051') as channel:
         stub =  engine_pb2_grpc.EngineServerStub(channel)
         player = Player(stub)
@@ -152,6 +151,9 @@ async def main() -> None:
         if answer.lower() == 'yes':
             if not await player.join():
                 print('Try lately')
+                exit()
+        else:
+            exit()
         await player.get_players()
         print('Are you ready to start the game? Write yes or no.')
         answer = input()
