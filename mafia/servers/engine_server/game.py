@@ -21,6 +21,7 @@ class Game:
         self.is_publish = False
         self.checks = str()
     
+        self.id = id
         self.state = GameState(id, max_players)
         self.players = []
         self.dead_players = []
@@ -28,13 +29,15 @@ class Game:
         self.ready_to_start = []
         self.end_cond = []
         self.actions = 0
+        self.is_full = False
+        self.mafias = []
     
     # GAME STATE
     def count(self):
         return self.state.max_players
     
-    def id(self):
-        return self.state.id
+    # def id(self):
+    #     return self.state.id
     
     def append_mafia(self, name):
         self.state.mafias.append(name)
@@ -78,7 +81,7 @@ class Game:
         if self.is_full:
             return False
         self.players.append(name)
-        if len(self.players) == self.max_players:
+        if len(self.players) == self.count():
             self.is_full = True
         return True
     
@@ -87,14 +90,14 @@ class Game:
     
     def set_roles(self):
         self.roles_names = []
-        for i in range(self.count() / 3):
+        for i in range(self.count() // 3):
             self.roles_names.append('Mafia')
-        self.roles.append('Sheriff')
+        self.roles_names.append('Sheriff')
         for i in range(self.state.max_players - len(self.roles)):
             self.roles_names.append('Villager')
 
         random.shuffle(self.roles_names)
-        for i in range(self.max_players):
+        for i in range(len(self.players)):
             self.roles[self.players[i]] = self.roles_names[i]
             if self.roles_names[i] == 'Mafia':
                 self.append_mafia(self.players[i])
@@ -116,7 +119,7 @@ class Game:
     
 
     # DAY ACTIONS
-    def vote(self, request: engine_pb2.ActionRequest) -> None:
+    def vote(self, request: engine_pb2.VoteRequest) -> None:
         if request.name in self.dead_players:
             return 'You are ghost!'
     

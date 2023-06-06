@@ -45,5 +45,3 @@ class GameState:
             else:
                 alive_villagers += 1
         return alive_mafias, alive_villagers
-    
-

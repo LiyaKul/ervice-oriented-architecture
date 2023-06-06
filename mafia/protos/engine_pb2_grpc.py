@@ -19,6 +19,11 @@ class EngineServerStub(object):
                 request_serializer=engine__pb2.JoinRequest.SerializeToString,
                 response_deserializer=engine__pb2.JoinResponse.FromString,
                 )
+        self.Leave = channel.unary_unary(
+                '/EngineServer/Leave',
+                request_serializer=engine__pb2.LeaveRequest.SerializeToString,
+                response_deserializer=engine__pb2.LeaveResponse.FromString,
+                )
         self.GetPlayers = channel.unary_unary(
                 '/EngineServer/GetPlayers',
                 request_serializer=engine__pb2.GetPlayersRequest.SerializeToString,
@@ -29,15 +34,35 @@ class EngineServerStub(object):
                 request_serializer=engine__pb2.StartRequest.SerializeToString,
                 response_deserializer=engine__pb2.StartResponse.FromString,
                 )
-        self.GameInfo = channel.unary_stream(
-                '/EngineServer/GameInfo',
-                request_serializer=engine__pb2.InfoRequest.SerializeToString,
-                response_deserializer=engine__pb2.InfoResponse.FromString,
+        self.Kill = channel.unary_unary(
+                '/EngineServer/Kill',
+                request_serializer=engine__pb2.KillRequest.SerializeToString,
+                response_deserializer=engine__pb2.KillResponse.FromString,
                 )
-        self.GameAction = channel.stream_stream(
-                '/EngineServer/GameAction',
-                request_serializer=engine__pb2.ActionRequest.SerializeToString,
-                response_deserializer=engine__pb2.ActionResponse.FromString,
+        self.Check = channel.unary_unary(
+                '/EngineServer/Check',
+                request_serializer=engine__pb2.CheckRequest.SerializeToString,
+                response_deserializer=engine__pb2.CheckResponse.FromString,
+                )
+        self.Vote = channel.unary_unary(
+                '/EngineServer/Vote',
+                request_serializer=engine__pb2.VoteRequest.SerializeToString,
+                response_deserializer=engine__pb2.VoteResponse.FromString,
+                )
+        self.EndDay = channel.unary_unary(
+                '/EngineServer/EndDay',
+                request_serializer=engine__pb2.EndDayRequest.SerializeToString,
+                response_deserializer=engine__pb2.EndDayResponse.FromString,
+                )
+        self.EndNight = channel.unary_unary(
+                '/EngineServer/EndNight',
+                request_serializer=engine__pb2.EndNightRequest.SerializeToString,
+                response_deserializer=engine__pb2.EndNightResponse.FromString,
+                )
+        self.PublishSheriffChecks = channel.unary_unary(
+                '/EngineServer/PublishSheriffChecks',
+                request_serializer=engine__pb2.PublishRequest.SerializeToString,
+                response_deserializer=engine__pb2.PublishResponse.FromString,
                 )
 
 
@@ -45,6 +70,12 @@ class EngineServerServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def Join(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Leave(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -62,13 +93,37 @@ class EngineServerServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def GameInfo(self, request, context):
+    def Kill(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def GameAction(self, request_iterator, context):
+    def Check(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Vote(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def EndDay(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def EndNight(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def PublishSheriffChecks(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -82,6 +137,11 @@ def add_EngineServerServicer_to_server(servicer, server):
                     request_deserializer=engine__pb2.JoinRequest.FromString,
                     response_serializer=engine__pb2.JoinResponse.SerializeToString,
             ),
+            'Leave': grpc.unary_unary_rpc_method_handler(
+                    servicer.Leave,
+                    request_deserializer=engine__pb2.LeaveRequest.FromString,
+                    response_serializer=engine__pb2.LeaveResponse.SerializeToString,
+            ),
             'GetPlayers': grpc.unary_unary_rpc_method_handler(
                     servicer.GetPlayers,
                     request_deserializer=engine__pb2.GetPlayersRequest.FromString,
@@ -92,15 +152,35 @@ def add_EngineServerServicer_to_server(servicer, server):
                     request_deserializer=engine__pb2.StartRequest.FromString,
                     response_serializer=engine__pb2.StartResponse.SerializeToString,
             ),
-            'GameInfo': grpc.unary_stream_rpc_method_handler(
-                    servicer.GameInfo,
-                    request_deserializer=engine__pb2.InfoRequest.FromString,
-                    response_serializer=engine__pb2.InfoResponse.SerializeToString,
+            'Kill': grpc.unary_unary_rpc_method_handler(
+                    servicer.Kill,
+                    request_deserializer=engine__pb2.KillRequest.FromString,
+                    response_serializer=engine__pb2.KillResponse.SerializeToString,
             ),
-            'GameAction': grpc.stream_stream_rpc_method_handler(
-                    servicer.GameAction,
-                    request_deserializer=engine__pb2.ActionRequest.FromString,
-                    response_serializer=engine__pb2.ActionResponse.SerializeToString,
+            'Check': grpc.unary_unary_rpc_method_handler(
+                    servicer.Check,
+                    request_deserializer=engine__pb2.CheckRequest.FromString,
+                    response_serializer=engine__pb2.CheckResponse.SerializeToString,
+            ),
+            'Vote': grpc.unary_unary_rpc_method_handler(
+                    servicer.Vote,
+                    request_deserializer=engine__pb2.VoteRequest.FromString,
+                    response_serializer=engine__pb2.VoteResponse.SerializeToString,
+            ),
+            'EndDay': grpc.unary_unary_rpc_method_handler(
+                    servicer.EndDay,
+                    request_deserializer=engine__pb2.EndDayRequest.FromString,
+                    response_serializer=engine__pb2.EndDayResponse.SerializeToString,
+            ),
+            'EndNight': grpc.unary_unary_rpc_method_handler(
+                    servicer.EndNight,
+                    request_deserializer=engine__pb2.EndNightRequest.FromString,
+                    response_serializer=engine__pb2.EndNightResponse.SerializeToString,
+            ),
+            'PublishSheriffChecks': grpc.unary_unary_rpc_method_handler(
+                    servicer.PublishSheriffChecks,
+                    request_deserializer=engine__pb2.PublishRequest.FromString,
+                    response_serializer=engine__pb2.PublishResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -126,6 +206,23 @@ class EngineServer(object):
         return grpc.experimental.unary_unary(request, target, '/EngineServer/Join',
             engine__pb2.JoinRequest.SerializeToString,
             engine__pb2.JoinResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def Leave(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/EngineServer/Leave',
+            engine__pb2.LeaveRequest.SerializeToString,
+            engine__pb2.LeaveResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -164,7 +261,7 @@ class EngineServer(object):
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def GameInfo(request,
+    def Kill(request,
             target,
             options=(),
             channel_credentials=None,
@@ -174,14 +271,14 @@ class EngineServer(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_stream(request, target, '/EngineServer/GameInfo',
-            engine__pb2.InfoRequest.SerializeToString,
-            engine__pb2.InfoResponse.FromString,
+        return grpc.experimental.unary_unary(request, target, '/EngineServer/Kill',
+            engine__pb2.KillRequest.SerializeToString,
+            engine__pb2.KillResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
-    def GameAction(request_iterator,
+    def Check(request,
             target,
             options=(),
             channel_credentials=None,
@@ -191,8 +288,76 @@ class EngineServer(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.stream_stream(request_iterator, target, '/EngineServer/GameAction',
-            engine__pb2.ActionRequest.SerializeToString,
-            engine__pb2.ActionResponse.FromString,
+        return grpc.experimental.unary_unary(request, target, '/EngineServer/Check',
+            engine__pb2.CheckRequest.SerializeToString,
+            engine__pb2.CheckResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def Vote(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/EngineServer/Vote',
+            engine__pb2.VoteRequest.SerializeToString,
+            engine__pb2.VoteResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def EndDay(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/EngineServer/EndDay',
+            engine__pb2.EndDayRequest.SerializeToString,
+            engine__pb2.EndDayResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def EndNight(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/EngineServer/EndNight',
+            engine__pb2.EndNightRequest.SerializeToString,
+            engine__pb2.EndNightResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def PublishSheriffChecks(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/EngineServer/PublishSheriffChecks',
+            engine__pb2.PublishRequest.SerializeToString,
+            engine__pb2.PublishResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

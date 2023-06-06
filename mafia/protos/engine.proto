@@ -3,22 +3,41 @@ syntax = "proto3";
 service EngineServer {
     rpc Join(JoinRequest) returns (JoinResponse) {}
 
+    rpc Leave(LeaveRequest) returns (LeaveResponse) {}
+
     rpc GetPlayers(GetPlayersRequest) returns (GetPlayersResponse) {}
 
     rpc Start(StartRequest) returns (StartResponse) {}
 
-    rpc GameInfo(InfoRequest) returns (stream InfoResponse) {}
+    rpc Kill(KillRequest) returns (KillResponse) {}
 
-    rpc GameAction(stream ActionRequest) returns (stream ActionResponse) {}
+    rpc Check(CheckRequest) returns (CheckResponse) {}
+
+    rpc Vote(VoteRequest) returns (VoteResponse) {}
+
+    rpc EndDay(EndDayRequest) returns (EndDayResponse) {}
+
+    rpc EndNight(EndNightRequest) returns (EndNightResponse) {}
+
+    rpc PublishSheriffChecks(PublishRequest) returns (PublishResponse) {}
 }
 
 message JoinRequest {
-    optional string name = 1;
+    string name = 1;
     optional string text = 2;
 }
 
 message JoinResponse {
     int32 id = 1;
+    optional string text = 2;
+}
+
+message LeaveRequest {
+    string name = 1;
+    optional string text = 2;
+}
+
+message LeaveResponse {
     optional string text = 2;
 }
 
@@ -28,9 +47,8 @@ message GetPlayersRequest {
 }
 
 message GetPlayersResponse {
-    int32 count = 1;
+    string text = 1;
     string names = 2;
-    optional string text = 3;
 }
 
 message StartRequest {
@@ -40,7 +58,7 @@ message StartRequest {
 
 message StartResponse {
     bool started = 1;
-    optional string role = 2;
+    string role = 2;
     optional string text = 3;
     optional string mafias = 4;
 }
@@ -51,20 +69,72 @@ message InfoRequest {
 }
 
 message InfoResponse {
-    string text = 1;
+    string type = 1;
+    optional string text = 2;
+    optional string dead_player_name = 3;
 }
 
-message ActionRequest {
+message KillRequest {
+    string name = 1;
+    string kill_name = 2;
+    optional string text = 3;
+}
+
+message KillResponse {
+    bool result = 1;
+    optional string text = 2;
+}
+
+message CheckRequest {
+    string name = 1;
+    string check_name = 2;
+    optional string text = 3;
+}
+
+message CheckResponse {
+    bool result = 1;
+    optional string role = 2;
+    optional string text = 3;
+}
+
+message VoteRequest {
+    string name = 1;
+    string vote_name = 2;
+    optional string text = 3;
+}
+
+message VoteResponse {
+    bool result = 1;
+    optional string text = 2;
+}
+
+message EndDayRequest {
+    string name = 1;
+    string kill_name = 2;
+    optional string text = 3;
+}
+
+message EndDayResponse {
     string name = 1;
     optional string text = 2;
-    optional string type = 3;
-    optional string vote_name = 4;
-    optional string action_name = 5;
 }
 
-message ActionResponse {
-    optional string text = 1;
-    optional string type = 2;
-    optional string name = 3;
-    optional string mafias = 4;
+message EndNightRequest {
+    string name = 1;
+    optional string text = 2;
+}
+
+message EndNightResponse {
+    bool ended = 1;
+    optional string text = 2;
+}
+
+message PublishRequest {
+    string name = 1;
+    optional string text = 2;
+}
+
+message PublishResponse {
+    bool result = 1;
+    optional string text = 2;
 }

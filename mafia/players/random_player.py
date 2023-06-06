@@ -25,21 +25,21 @@ class RandomPlayer:
 
     async def join(self) -> None:
         response = await self.stub.Join(engine_pb2.JoinRequest(name=self.name, text='hello'))
-        print(self.name + ': "Received join response: ' + response.text + '"')
+        logging.info(self.name + ': ' + response.text)
         self.id = response.id
         return response.id != -1
 
     async def get_players(self) -> None:
         response = await self.stub.GetPlayers(engine_pb2.GetPlayersRequest(name=self.name, text='hello'))
         self.players =  response.names.split('%')
-        print(self.name + ': "Received players:', self.players, '"')
+        logging.info(self.name + ': Received players:' + response.names.replace('%', ', '))
 
     async def want_to_start(self):
         response = await self.stub.Start(engine_pb2.StartRequest(name=self.name, text='hello'))
         if not response.started:
-            print(self.name + ': "Im not in game :("')
+            logging.info(self.name + ': Im not in game :(')
             return False
-        print(self.name + ': "I got the %s role!"' % response.role)
+        logging.info(self.name + ': I got the %s role!' % response.role)
         if response.role == 'Sheriff':
             self.role = Sheriff(self.id, self.players, self.name)
         elif response.role == 'Mafia':
@@ -47,54 +47,73 @@ class RandomPlayer:
         else:
             self.role = Villager(self.id, self.players, self.name)
         return response.started
+    
+    async def kill(self):
+        if self.role.role == 'Mafia':
+            yield engine_pb2.KillRequest(name=self.name, kill_name=self.role.action())
 
-    async def get_notifications(self):
-        notifications = self.stub.GameInfo(engine_pb2.InfoRequest(name=self.name, text='hello'))   
-        
-        async for message in notifications:
-            print(self.name + ': "'+ message.text +'"')
-            if 'ready to start' in  message.text:
-                self.players.append(message.text.split()[0])
+    async def check(self):
+        if self.role.role == 'Sheriff':
+            yield engine_pb2.CheckRequest(name=self.name, check_name=self.role.action())
 
-    async def generate_messages(self):
-        while self.request_type != 'end':
-            async with self.action_cond:
-                await self.action_cond.wait()
-            type = self.request_type
-            if type == 'day':
-                yield engine_pb2.ActionRequest(name=self.name, text='Vote!', type=type, vote_name=self.role.vote())
-            elif type == 'check':
-                if self.role.check_result(self.check_name):
-                    yield engine_pb2.ActionRequest(name=self.name, text='Publish', type=type)
-            elif type == 'publish':
-                print("The results of the Sheriff's checks:")
-                for x in self.checks.split('%'):
-                    print(x.split()[0], ':', x.split()[1])
-            elif type == 'night' and self.role.role == 'Mafia':
-                yield engine_pb2.ActionRequest(name=self.name, text='Kill!', type=type, action_name=self.role.action())
-            elif type == 'night' and  self.role.role == 'Sheriff':
-                yield engine_pb2.ActionRequest(name=self.name, text='Check!', type=type, action_name=self.role.action())
-            else:
-                yield engine_pb2.ActionRequest(name=self.name, text='Sleep!', type=type)
+    async def vote(self):
+        yield engine_pb2.VoteRequest(name=self.name, vote_name=self.role.vote())
+    
+    async def end_day(self):
+        yield engine_pb2.EndDayRequest(name=self.name)
+    
+    async def end_night(self):
+        yield engine_pb2.EndNightRequest(name=self.name)
+    
+
+
+    # async def get_notifications(self):
+    #     notifications = self.stub.GameInfo(engine_pb2.InfoRequest(name=self.name, text='hello'))   
         
-    async def game_actions(self):
-        notifications = self.stub.GameAction(self.generate_messages()) 
+    #     async for message in notifications:
+    #         print(self.name + ': "'+ message.text +'"')
+    #         if 'ready to start' in  message.text:
+    #             self.players.append(message.text.split()[0])
+
+    # async def generate_messages(self):
+    #     while self.request_type != 'end':
+    #         async with self.action_cond:
+    #             await self.action_cond.wait()
+    #         type = self.request_type
+    #         if type == 'day':
+    #             yield engine_pb2.ActionRequest(name=self.name, text='Vote!', type=type, vote_name=self.role.vote())
+    #         elif type == 'check':
+    #             if self.role.check_result(self.check_name):
+    #                 yield engine_pb2.ActionRequest(name=self.name, text='Publish', type=type)
+    #         elif type == 'publish':
+    #             print("The results of the Sheriff's checks:")
+    #             for x in self.checks.split('%'):
+    #                 print(x.split()[0], ':', x.split()[1])
+    #         elif type == 'night' and self.role.role == 'Mafia':
+    #             yield engine_pb2.ActionRequest(name=self.name, text='Kill!', type=type, action_name=self.role.action())
+    #         elif type == 'night' and  self.role.role == 'Sheriff':
+    #             yield engine_pb2.ActionRequest(name=self.name, text='Check!', type=type, action_name=self.role.action())
+    #         else:
+    #             yield engine_pb2.ActionRequest(name=self.name, text='Sleep!', type=type)
         
-        async for message in notifications:
-            self.request_type = message.type
-            self.role.new_dead(message.name)
-            print(message.type)
-            if message.type != 'check':
-                print(self.name + ': "'+ message.text +'"')
-            if message.type == 'check':
-                self.check_name = message.text
-            if message.type == 'publish':
-                print("The results of the Sheriff's checks:")
-                self.checks = message.name
-            async with self.action_cond:
-                self.action_cond.notify()
-            if message.type == 'end':
-                break
+    # async def game_actions(self):
+    #     notifications = self.stub.GameAction(self.generate_messages()) 
+        
+    #     async for message in notifications:
+    #         self.request_type = message.type
+    #         self.role.new_dead(message.name)
+    #         print(message.type)
+    #         if message.type != 'check':
+    #             print(self.name + ': "'+ message.text +'"')
+    #         if message.type == 'check':
+    #             self.check_name = message.text
+    #         if message.type == 'publish':
+    #             print("The results of the Sheriff's checks:")
+    #             self.checks = message.name
+    #         async with self.action_cond:
+    #             self.action_cond.notify()
+    #         if message.type == 'end':
+    #             break
 
 
 async def main() -> None:
@@ -108,9 +127,7 @@ async def main() -> None:
         await player.get_players()
         await asyncio.gather(
             player.want_to_start(),
-            player.get_notifications()
         )
-        await player.game_actions()
         
 
 if __name__ == '__main__':
