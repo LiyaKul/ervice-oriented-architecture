@@ -33,12 +33,14 @@ class EndDayRequest(_message.Message):
     def __init__(self, name: _Optional[str] = ..., text: _Optional[str] = ...) -> None: ...
 
 class EndDayResponse(_message.Message):
-    __slots__ = ["ended", "text"]
+    __slots__ = ["dead_player_name", "ended", "text"]
+    DEAD_PLAYER_NAME_FIELD_NUMBER: _ClassVar[int]
     ENDED_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
+    dead_player_name: str
     ended: bool
     text: str
-    def __init__(self, ended: bool = ..., text: _Optional[str] = ...) -> None: ...
+    def __init__(self, ended: bool = ..., text: _Optional[str] = ..., dead_player_name: _Optional[str] = ...) -> None: ...
 
 class EndNightRequest(_message.Message):
     __slots__ = ["name", "text"]
@@ -49,12 +51,14 @@ class EndNightRequest(_message.Message):
     def __init__(self, name: _Optional[str] = ..., text: _Optional[str] = ...) -> None: ...
 
 class EndNightResponse(_message.Message):
-    __slots__ = ["ended", "text"]
+    __slots__ = ["dead_player_name", "ended", "text"]
+    DEAD_PLAYER_NAME_FIELD_NUMBER: _ClassVar[int]
     ENDED_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
+    dead_player_name: str
     ended: bool
     text: str
-    def __init__(self, ended: bool = ..., text: _Optional[str] = ...) -> None: ...
+    def __init__(self, ended: bool = ..., text: _Optional[str] = ..., dead_player_name: _Optional[str] = ...) -> None: ...
 
 class GetPlayersRequest(_message.Message):
     __slots__ = ["name", "text"]

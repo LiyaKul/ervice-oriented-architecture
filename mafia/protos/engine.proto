@@ -119,6 +119,7 @@ message EndDayRequest {
 message EndDayResponse {
     bool ended = 1;
     optional string text = 2;
+    optional string dead_player_name = 3;
 }
 
 message EndNightRequest {
@@ -129,6 +130,7 @@ message EndNightRequest {
 message EndNightResponse {
     bool ended = 1;
     optional string text = 2;
+    optional string dead_player_name = 3;
 }
 
 message PublishRequest {

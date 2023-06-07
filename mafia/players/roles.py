@@ -16,7 +16,6 @@ class Villager:
             return ''
         vote_id = random.randint(0, self.players_count - 1)
         for i in range(50):
-            print('!!!', self.players, vote_id)
             vote_name = self.players[vote_id]
             if vote_name != self.name and vote_name not in self.dead_players:
                 return vote_name

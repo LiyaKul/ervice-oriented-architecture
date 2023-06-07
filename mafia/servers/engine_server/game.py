@@ -195,7 +195,6 @@ class Game:
 
         for name, count in self.votes.items():
             if max_name != name and max_count == count:
-                # print(self.votes, max_name)
                 self.votes = dict()
                 return ''
         return max_name

@@ -79,11 +79,23 @@ class RandomPlayer:
         response = await self.stub.EndDay(engine_pb2.EndDayRequest(name=self.name))
         if response.ended:
             self.time = 'night'
+            if response.text == 'end':
+                self.game_end = True
+        if response.dead_player_name:
+            self.role.new_dead(response.dead_player_name)
+            if response.dead_player_name == self.name:
+                self.is_alive = False
 
     async def end_night(self):
         response = await self.stub.EndNight(engine_pb2.EndNightRequest(name=self.name))
         if response.ended:
             self.time = 'day'
+            if response.text == 'end':
+                self.game_end = True
+            if response.dead_player_name:
+                self.role.new_dead(response.dead_player_name)
+                if response.dead_player_name == self.name:
+                    self.is_alive = False
     
     async def start_game(self):
         if not await self.want_to_start():
