@@ -54,12 +54,14 @@ class RandomPlayer:
             self.role = Sheriff(self.id, self.players, self.name)
         elif response.role == 'Mafia':
             self.role = Mafia(self.id, self.players, self.name, list(response.mafias.split('%')))
-        else:
+        elif response.role == 'Villager':
             self.role = Villager(self.id, self.players, self.name)
+        else:
+            print('Incorrect role')
+            exit()
         return response.started
     
     async def kill(self):
-        print('kill')
         if self.role.role == 'Mafia':
             response = await self.stub.Kill(engine_pb2.KillRequest(name=self.name, kill_name=self.role.action()))
             logging.info(self.name + ': ' + response.text)
@@ -78,7 +80,6 @@ class RandomPlayer:
         if response.ended:
             self.time = 'night'
 
-    
     async def end_night(self):
         response = await self.stub.EndNight(engine_pb2.EndNightRequest(name=self.name))
         if response.ended:
@@ -88,25 +89,25 @@ class RandomPlayer:
         if not await self.want_to_start():
             exit()
         await self.get_players()
+        await asyncio.sleep(1)
         for i in range(20):
             if not self.is_alive or self.game_end:
                 break
             if self.time == 'night':
                 if self.role.role == 'Sheriff':
                     await self.check()
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(1)
                 elif self.role.role == 'Mafia':
                     await self.kill()
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(1)
                 await self.end_night()
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(1)
                 self.time = 'day'
             elif self.time == 'day':
                 await self.vote()
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(1)
                 await self.end_day()
-                await asyncio.sleep(0.5)
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(1)
                 self.time = 'night'
         if not self.game_end:
             logging.info(self.name + ': Too many iterations, game ended.')

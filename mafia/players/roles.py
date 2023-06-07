@@ -15,11 +15,12 @@ class Villager:
         if not self.is_alive:
             return ''
         vote_id = random.randint(0, self.players_count - 1)
-        for i in range(3):
+        for i in range(50):
+            print('!!!', self.players, vote_id)
             vote_name = self.players[vote_id]
             if vote_name != self.name and vote_name not in self.dead_players:
                 return vote_name
-            vote_id = random.randint(0, self.players_count)
+            vote_id = random.randint(0, self.players_count - 1)
         return ''
     
     def new_dead(self, name: str) -> None:
@@ -48,7 +49,7 @@ class Sheriff(Villager):
         if not self.is_alive:
             return ''
         check_id = random.randint(0, self.players_count - 1)
-        for i in range(3):
+        for i in range(50):
             check_name = self.players[check_id]
             if check_name != self.name and check_name not in self.dead_players and check_name in self.players:
                 self.checked_players.append(check_name)
@@ -71,7 +72,7 @@ class Mafia(Villager):
         if not self.is_alive:
             return ''
         kill_id = random.randint(0, self.players_count - 1)
-        for i in range(3):
+        for i in range(50):
             kill_name = self.players[kill_id]
             if kill_name != self.name and kill_name not in self.dead_players and kill_name not in self.mafias and kill_name in self.players:
                 return kill_name

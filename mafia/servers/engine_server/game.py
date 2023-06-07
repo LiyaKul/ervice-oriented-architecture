@@ -173,7 +173,7 @@ class Game:
         #     return 'You can not check now!'
         
         if request.check_name in self.dead_players:
-            return request.vote_name + 'is already dead! Dead players:' + ' '.join(self.dead_players)
+            return request.check_name + 'is already dead! Dead players:' + ' '.join(self.dead_players)
 
         if request.check_name not in self.players:
             return 'You entered the wrong name! Choose from: %s' % ' '.join(self.players)
