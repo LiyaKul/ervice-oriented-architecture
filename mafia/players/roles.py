@@ -9,15 +9,17 @@ class Villager:
         self.players = players
         self.role = 'Villager'
         self.name = name
+        random.seed(name)
     
     def vote(self) -> int:
         if not self.is_alive:
             return ''
-        vote_name = self.id
+        vote_id = random.randint(0, self.players_count - 1)
         for i in range(3):
+            vote_name = self.players[vote_id]
             if vote_name != self.name and vote_name not in self.dead_players:
-                return self.players[vote_name]
-            vote_name = random.choice(list(range(4)))
+                return vote_name
+            vote_id = random.randint(0, self.players_count)
         return ''
     
     def new_dead(self, name: str) -> None:
@@ -45,12 +47,13 @@ class Sheriff(Villager):
     def action(self) -> str:
         if not self.is_alive:
             return ''
-        check_name = self.name
+        check_id = random.randint(0, self.players_count - 1)
         for i in range(3):
+            check_name = self.players[check_id]
             if check_name != self.name and check_name not in self.dead_players and check_name in self.players:
                 self.checked_players.append(check_name)
                 return check_name
-            check_name = random.choice(self.players)
+            check_id= random.randint(0, self.players_count - 1)
         return ''
     
     def check_result(self, res: str) -> None:
@@ -67,9 +70,10 @@ class Mafia(Villager):
     def action(self) -> str:
         if not self.is_alive:
             return ''
-        kill_name = self.name
+        kill_id = random.randint(0, self.players_count - 1)
         for i in range(3):
+            kill_name = self.players[kill_id]
             if kill_name != self.name and kill_name not in self.dead_players and kill_name not in self.mafias and kill_name in self.players:
                 return kill_name
-            kill_name = random.choice(self.players)
+            kill_id= random.randint(0, self.players_count - 1)
         return ''

@@ -59,15 +59,19 @@ class RandomPlayer:
         return response.started
     
     async def kill(self):
+        print('kill')
         if self.role.role == 'Mafia':
             response = await self.stub.Kill(engine_pb2.KillRequest(name=self.name, kill_name=self.role.action()))
+            logging.info(self.name + ': ' + response.text)
 
     async def check(self):
         if self.role.role == 'Sheriff':
             response = await self.stub.Check(engine_pb2.CheckRequest(name=self.name, check_name=self.role.action()))
+            logging.info(self.name + ': ' + response.text)
 
     async def vote(self):
-        await self.stub.Vote(engine_pb2.VoteRequest(name=self.name, vote_name=self.role.vote()))
+        response = await self.stub.Vote(engine_pb2.VoteRequest(name=self.name, vote_name=self.role.vote()))
+        logging.info(self.name + ': ' + response.text)
     
     async def end_day(self):
         response = await self.stub.EndDay(engine_pb2.EndDayRequest(name=self.name))
@@ -84,7 +88,7 @@ class RandomPlayer:
         if not await self.want_to_start():
             exit()
         await self.get_players()
-        for i in range(10):
+        for i in range(20):
             if not self.is_alive or self.game_end:
                 break
             if self.time == 'night':
@@ -104,6 +108,8 @@ class RandomPlayer:
                 await asyncio.sleep(0.5)
                 await asyncio.sleep(0.5)
                 self.time = 'night'
+        if not self.game_end:
+            logging.info(self.name + ': Too many iterations, game ended.')
 
 
     async def get_messages(self):
