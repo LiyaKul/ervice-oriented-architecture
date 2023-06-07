@@ -1,6 +1,4 @@
 from enum import Enum
-import logging
-import asyncio
 import random
 
 import mafia.protos.engine_pb2 as engine_pb2
@@ -13,25 +11,28 @@ class State(Enum):
 class Game:
     def __init__(self, id, max_players = 4):
         self.max_players = max_players
-        self.votes = dict()
-        self.vote_name = ''
+        self.id = id
+        self.is_full = False
+        self.status = State.PENDING
+        self.actions = 0
+
         self.roles = dict()
+        self.players = []
+        self.dead_players = []
+        self.ready_to_start = []
+        self.mafias = []
+
+        self.votes = dict()
+        # self.vote_name = ''
 
         self.is_publish = False
         self.checks = dict()
     
-        self.id = id
-        self.players = []
-        self.dead_players = []
         self.end = []
-        self.ready_to_start = []
         self.end_cond = []
-        self.actions = 0
-        self.is_full = False
-        self.mafias = []
 
-        self.status = State.PENDING
-    
+    # utils
+
     def append_mafia(self, name):
         self.mafias.append(name)
     
@@ -47,7 +48,6 @@ class Game:
         self.votes = dict()
         self.status = State.ENDED
 
-    # utils
     def inc_start(self, name) -> str:
         if name in self.ready_to_start:
             return 'The request has already been sent'
@@ -79,6 +79,7 @@ class Game:
     def append_dead_player(self, name):
         self.dead_players.append(name)
     
+    # game
     def set_roles(self):
         self.roles_names = ['Sheriff']
         for i in range(self.max_players // 3):
@@ -112,9 +113,6 @@ class Game:
     def vote(self, request: engine_pb2.VoteRequest) -> None:
         if request.name in self.dead_players:
             return 'You are ghost!'
-    
-        # if self.time() != 'day':
-        #     return 'You can not vote now!'
         
         if request.vote_name in self.dead_players:
             return request.vote_name + 'is already dead! Dead players:' + ' '.join(self.dead_players)
@@ -139,9 +137,6 @@ class Game:
     
         if self.roles[request.name] != 'Mafia':
             return 'You are not mafia!'
-
-        # if self.time() != 'night':
-        #     return 'You can not kill now!'
         
         if request.kill_name in self.dead_players:
             return request.kill_name + 'is already dead! Dead players:' + ' '.join(self.dead_players)
@@ -169,9 +164,6 @@ class Game:
         if self.roles[request.name] != 'Sheriff':
             return 'You are not Sheriff!'
 
-        # if self.time != 'night':
-        #     return 'You can not check now!'
-        
         if request.check_name in self.dead_players:
             return request.check_name + 'is already dead! Dead players:' + ' '.join(self.dead_players)
 
@@ -199,7 +191,6 @@ class Game:
                 return ''
         return max_name
 
-
     def check_game_end(self) -> tuple:
         alive_mafias = 0
         alive_villagers = 0
@@ -211,11 +202,3 @@ class Game:
             else:
                 alive_villagers += 1
         return alive_mafias, alive_villagers
-
-    def append_player(self, name) -> bool:
-        if self.is_full:
-            return False
-        self.players.append(name)
-        if len(self.players) == self.max_players:
-            self.is_full = True
-        return True

@@ -4,30 +4,22 @@ import asyncio
 import random
 import string
 from enum import Enum
+import os
 
-import sys
-sys.path.append('../../')
-sys.path.append('../../../')
-sys.path.append('..')
-sys.path.append('.')
 import mafia.protos.engine_pb2 as engine_pb2
 import mafia.protos.engine_pb2_grpc as engine_pb2_grpc
 
 from roles import *
-
 class MessageType(Enum):
     INFO = 1
     DEATH = 2
     PUBLISH = 3
     END = 4
 
-class Player:
-    def __init__(self, stub: engine_pb2_grpc.EngineServerStub, name = None):
+class RandomPlayer:
+    def __init__(self, stub: engine_pb2_grpc.EngineServerStub):
         self.stub = stub
-        if name is None or name == '':
-            self.name = ''.join(random.choice(string.ascii_uppercase) for _ in range(7))
-        else:
-            self.name = name
+        self.name = ''.join(random.choice(string.ascii_uppercase) for _ in range(7)) # https://stackoverflow.com/questions/2030053/how-to-generate-random-strings-in-python
         self.request_type = 'day'
         self.action_cond = asyncio.Condition()
         self.checks = dict()
@@ -58,54 +50,25 @@ class Player:
             self.role = Sheriff(self.id, self.players, self.name)
         elif response.role == 'Mafia':
             self.role = Mafia(self.id, self.players, self.name, list(response.mafias.split('%')))
-        else:
+        elif response.role == 'Villager':
             self.role = Villager(self.id, self.players, self.name)
+        else:
+            print('Incorrect role')
+            exit()
         return response.started
     
     async def kill(self):
         if self.role.role == 'Mafia':
-            print('Choose a mafia victim.')
-            name = input()
-            while name not in self.players or name == self.name or name in self.role.dead_players or name in self.role.mafias:
-                if name == self.name:
-                    print("You can't kill yourself. Choose another name. List of players: ", self.players)
-                elif name not in self.players:
-                    print("Incorrect name. Choose on from the list:", self.players)
-                elif name in self.role.dead_players:
-                    print("Player is dead. Choose another name. Dead players: ", self.role.dead_players)
-                else:
-                    print("Incorrect name. You can't choose another mafia. List of the mafias: ", self.role.mafias)
-                name = input()
-            response = await self.stub.Kill(engine_pb2.KillRequest(name=self.name, kill_name=name))
+            response = await self.stub.Kill(engine_pb2.KillRequest(name=self.name, kill_name=self.role.action()))
             logging.info(self.name + ': ' + response.text)
 
     async def check(self):
         if self.role.role == 'Sheriff':
-            print('Choose a player to check the role.')
-            name = input()
-            while name not in self.players or name == self.name or name in self.role.dead_players:
-                if name == self.name:
-                    print("You can't check yourself. Choose another name. List of players: ", self.players)
-                elif name not in self.players:
-                    print("Incorrect name. Choose on from the list: ", self.players)
-                else:
-                    print("Player is dead. Choose another name. Dead players: ", self.role.dead_players)
-                name = input()
-            response = await self.stub.Check(engine_pb2.CheckRequest(name=self.name, check_name=name))
+            response = await self.stub.Check(engine_pb2.CheckRequest(name=self.name, check_name=self.role.action()))
             logging.info(self.name + ': ' + response.text)
 
     async def vote(self):
-        print('Voting is going on now. Choose a player.')
-        name = input()
-        while name not in self.players or name == self.name:
-            if name == self.name:
-                print("You can't vote for yourself. Choose another name. List of players: ", self.players)
-            elif name not in self.players:
-                print("Incorrect name. Choose on from the list:", self.players)
-            else:
-                print("Player is dead. Choose another name. Dead players: ", self.role.dead_players)
-            name = input()
-        response = await self.stub.Vote(engine_pb2.VoteRequest(name=self.name, vote_name=name))
+        response = await self.stub.Vote(engine_pb2.VoteRequest(name=self.name, vote_name=self.role.vote()))
         logging.info(self.name + ': ' + response.text)
     
     async def end_day(self):
@@ -114,12 +77,11 @@ class Player:
             self.time = 'night'
             if response.text == 'end':
                 self.game_end = True
-            if response.dead_player_name:
-                self.role.new_dead(response.dead_player_name)
-                if response.dead_player_name == self.name:
-                    self.is_alive = False
+        if response.dead_player_name:
+            self.role.new_dead(response.dead_player_name)
+            if response.dead_player_name == self.name:
+                self.is_alive = False
 
-    
     async def end_night(self):
         response = await self.stub.EndNight(engine_pb2.EndNightRequest(name=self.name))
         if response.ended:
@@ -132,14 +94,9 @@ class Player:
                     self.is_alive = False
     
     async def start_game(self):
-        print('Are you ready to start the game? Write yes or no.')
-        answer = input()
-        if answer.lower() == 'yes':
-            print('Good! Waiting for other players...')
-            if not await self.want_to_start():
-                exit()
-        else:
+        if not await self.want_to_start():
             exit()
+        await self.get_players()
         await asyncio.sleep(1)
         for i in range(20):
             if not self.is_alive or self.game_end:
@@ -163,6 +120,7 @@ class Player:
         if not self.game_end:
             logging.info(self.name + ': Too many iterations, game ended.')
 
+
     async def get_messages(self):
         messages = self.stub.GameInfo(engine_pb2.InfoRequest(name=self.name, text='hello'))
         async for message in messages:
@@ -178,19 +136,13 @@ class Player:
                 break
 
 async def main() -> None:
-    async with grpc.aio.insecure_channel('localhost:50051') as channel:
+    name = ''.join(random.choice(string.ascii_uppercase) for _ in range(7)) # https://stackoverflow.com/questions/2030053/how-to-generate-random-strings-in-python
+    async with grpc.aio.insecure_channel(os.environ.get("HOSTNAME") + ":" + os.environ.get("PORT")) as channel:
         stub =  engine_pb2_grpc.EngineServerStub(channel)
-        print('Enter your name.')
-        name = input()
-        player = Player(stub, name)
-        print('Do you want to join the game? Write yes or no.')
-        answer = input()
-        if answer.lower() == 'yes':
-            if not await player.join():
-                print('Try lately')
-                exit()
-        else:
-            exit()
+        player = RandomPlayer(stub)
+        if not await player.join():
+            print('Try lately')
+            return
         await player.get_players()
         await asyncio.gather(
             player.start_game(),

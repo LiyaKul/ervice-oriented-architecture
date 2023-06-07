@@ -1,19 +1,8 @@
 version: '3'
 services:
-  engine:
-    build: servers/engine_server/
-    hostname: ENGINE
+  server:
+    build: server/
     expose:
-      - 51075
-    environment:
-      - PORT=51075
-      - HOSTNAME=ENGINE
-  player:
-    build: player/
-    expose:
-      - 51075
-    environment:
-      - ENGINE_SERVER_PORT=51075
-      - ENGINE_SERVER_HOSTNAME=ENGINE
-    depends_on:
-      - engine
+      - 2000/udp
+    ports:
+      - 2000:2000/udp
