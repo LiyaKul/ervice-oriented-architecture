@@ -15,7 +15,7 @@ class Villager:
             return ''
         vote_name = self.id
         for i in range(3):
-            if vote_name != self.id and vote_name not in self.dead_players:
+            if vote_name != self.name and vote_name not in self.dead_players:
                 return self.players[vote_name]
             vote_name = random.choice(list(range(4)))
         return ''
@@ -45,12 +45,12 @@ class Sheriff(Villager):
     def action(self) -> str:
         if not self.is_alive:
             return ''
-        check_id = self.id
+        check_name = self.name
         for i in range(3):
-            if check_id != self.id and check_id not in self.dead_players and check_id not in self.roles.keys():
-                self.checked_players.append(check_id)
-                return self.players[check_id]
-            check_id = random.choice(list(range(4)))
+            if check_name != self.name and check_name not in self.dead_players and check_name in self.players:
+                self.checked_players.append(check_name)
+                return check_name
+            check_name = random.choice(self.players)
         return ''
     
     def check_result(self, res: str) -> None:
@@ -67,9 +67,9 @@ class Mafia(Villager):
     def action(self) -> str:
         if not self.is_alive:
             return ''
-        kill_id = self.id
+        kill_name = self.name
         for i in range(3):
-            if kill_id != self.id and kill_id not in self.dead_players and kill_id not in self.mafias:
-                return self.players[kill_id]
-            kill_id = random.choice(list(range(4)))
+            if kill_name != self.name and kill_name not in self.dead_players and kill_name not in self.mafias and kill_name in self.players:
+                return kill_name
+            kill_name = random.choice(self.players)
         return ''

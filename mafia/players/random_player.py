@@ -30,6 +30,7 @@ class RandomPlayer:
         self.check_name = None
         self.time = 'day'
         self.game_end = False
+        self.is_alive = True
 
     async def join(self) -> None:
         response = await self.stub.Join(engine_pb2.JoinRequest(name=self.name, text='hello'))
@@ -59,53 +60,61 @@ class RandomPlayer:
     
     async def kill(self):
         if self.role.role == 'Mafia':
-            await self.stub.Kill(self.engine_pb2.KillRequest(name=self.name, kill_name=self.role.action()))
+            response = await self.stub.Kill(engine_pb2.KillRequest(name=self.name, kill_name=self.role.action()))
 
     async def check(self):
         if self.role.role == 'Sheriff':
-            await self.stub.Check(engine_pb2.CheckRequest(name=self.name, check_name=self.role.action()))
+            response = await self.stub.Check(engine_pb2.CheckRequest(name=self.name, check_name=self.role.action()))
 
     async def vote(self):
-        print('vote')
         await self.stub.Vote(engine_pb2.VoteRequest(name=self.name, vote_name=self.role.vote()))
     
     async def end_day(self):
-        print('end day')
-        await self.stub.EndDay(engine_pb2.EndDayRequest(name=self.name))
+        response = await self.stub.EndDay(engine_pb2.EndDayRequest(name=self.name))
+        if response.ended:
+            self.time = 'night'
+
     
     async def end_night(self):
-        await self.stub.EndNight(engine_pb2.EndNightRequest(name=self.name))
+        response = await self.stub.EndNight(engine_pb2.EndNightRequest(name=self.name))
+        if response.ended:
+            self.time = 'day'
     
     async def start_game(self):
         if not await self.want_to_start():
             exit()
         await self.get_players()
-        # print('start')
-        while not self.game_end:
-            if self.time == 'day':
-                await self.vote()
-                # print('vote')
-                await self.end_day()
-                # print('end day')
-                self.time == 'night'
-                continue
-            else:
-                print('night')
+        for i in range(10):
+            if not self.is_alive or self.game_end:
+                break
+            if self.time == 'night':
                 if self.role.role == 'Sheriff':
                     await self.check()
+                    await asyncio.sleep(0.5)
                 elif self.role.role == 'Mafia':
                     await self.kill()
+                    await asyncio.sleep(0.5)
                 await self.end_night()
-                self.time == 'day'
+                await asyncio.sleep(0.5)
+                self.time = 'day'
+            elif self.time == 'day':
+                await self.vote()
+                await asyncio.sleep(0.5)
+                await self.end_day()
+                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.5)
+                self.time = 'night'
 
 
     async def get_messages(self):
         messages = self.stub.GameInfo(engine_pb2.InfoRequest(name=self.name, text='hello'))
         async for message in messages:
-            print(self.name + ': "'+ message.text +'"')
+            logging.info(self.name + ': "'+ message.text +'"')
             if message.type == 'info':
                 continue
             if message.type == 'death':
+                if message.dead_player_name == self.name:
+                    self.is_alive = False
                 self.role.new_dead(message.dead_player_name)
             elif message.type == 'end':
                 self.game_end = True

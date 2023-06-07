@@ -5,8 +5,6 @@ import random
 
 import mafia.protos.engine_pb2 as engine_pb2
 
-from game_state import *
-
 class State(Enum):
     PENDING = 1
     STARTED = 2
@@ -14,15 +12,15 @@ class State(Enum):
 
 class Game:
     def __init__(self, id, max_players = 4):
+        self.max_players = max_players
         self.votes = dict()
         self.vote_name = ''
         self.roles = dict()
 
         self.is_publish = False
-        self.checks = str()
+        self.checks = dict()
     
         self.id = id
-        self.state = GameState(id, max_players)
         self.players = []
         self.dead_players = []
         self.end = []
@@ -32,31 +30,22 @@ class Game:
         self.is_full = False
         self.mafias = []
 
-        self.vote_name = ''
-    
-    # GAME STATE
-    def count(self):
-        return self.state.max_players
-    
-    # def id(self):
-    #     return self.state.id
-    def time(self):
-        return self.state.type
+        self.status = State.PENDING
     
     def append_mafia(self, name):
-        self.state.mafias.append(name)
-
-    def status(self):
-        return self.state.status
+        self.mafias.append(name)
     
     def set_night(self):
-        self.state.time = 'night'
+        self.votes = dict()
+        self.time = 'night'
 
     def set_day(self):
-        self.state.time = 'day'
+        self.votes = dict()
+        self.time = 'day'
     
     def set_end(self):
-        self.state.status = State.ENDED
+        self.votes = dict()
+        self.status = State.ENDED
 
     # utils
     def inc_start(self, name) -> str:
@@ -64,8 +53,9 @@ class Game:
             return 'The request has already been sent'
         self.ready_to_start.append(name)
         
-        if len(self.ready_to_start) == self.count():
+        if len(self.ready_to_start) == self.max_players:
             self.ready_to_start = []
+            self.status = State.STARTED
             return 'start'
         return 'wait'
     
@@ -73,7 +63,7 @@ class Game:
         if name in self.end:
             return 'The request has already been sent'
         self.end.append(name)
-        if len(self.end) == self.count():
+        if len(self.end) == self.max_players - len(self.dead_players):
             self.end = []
             return 'start'
         return 'wait'
@@ -82,7 +72,7 @@ class Game:
         if self.is_full:
             return False
         self.players.append(name)
-        if len(self.players) == self.count():
+        if len(self.players) == self.max_players:
             self.is_full = True
         return True
     
@@ -90,11 +80,10 @@ class Game:
         self.dead_players.append(name)
     
     def set_roles(self):
-        self.roles_names = []
-        for i in range(self.count() // 3):
+        self.roles_names = ['Sheriff']
+        for i in range(self.max_players // 3):
             self.roles_names.append('Mafia')
-        self.roles_names.append('Sheriff')
-        for i in range(self.state.max_players - len(self.roles)):
+        for i in range(self.max_players - len(self.roles)):
             self.roles_names.append('Villager')
 
         random.shuffle(self.roles_names)
@@ -116,7 +105,7 @@ class Game:
     def publish(self, request):
         if request.name in self.dead_players:
             return 'You are ghost!'
-        return self.checks
+        return str(self.checks)
     
 
     # DAY ACTIONS
@@ -155,7 +144,7 @@ class Game:
         #     return 'You can not kill now!'
         
         if request.kill_name in self.dead_players:
-            return '%s is already dead! Dead players: %s' % ' '.join(self.dead_players)
+            return request.kill_name + 'is already dead! Dead players:' + ' '.join(self.dead_players)
 
         if request.kill_name not in self.players:
             return 'You entered the wrong name! Choose from: %s' % ' '.join(self.players)
@@ -163,8 +152,8 @@ class Game:
         if request.name == request.kill_name:
             return 'You can not kill yourself!'
         
-        if request.kill_name in self.state.mafias:
-            return 'You can not kill another mafia! Mafias: %s' % ' '.join(self.state.mafias)
+        if request.kill_name in self.mafias:
+            return 'You can not kill another mafia! Mafias: %s' % ' '.join(self.mafias)
 
         if request.kill_name in self.votes.keys():
             self.votes[request.kill_name] += 1
@@ -180,11 +169,11 @@ class Game:
         if self.roles[request.name] != 'Sheriff':
             return 'You are not Sheriff!'
 
-        if self.time() != 'night':
-            return 'You can not check now!'
+        # if self.time != 'night':
+        #     return 'You can not check now!'
         
         if request.check_name in self.dead_players:
-            return '%s is already dead! Dead players: %s' % ' '.join(self.dead_players)
+            return request.vote_name + 'is already dead! Dead players:' + ' '.join(self.dead_players)
 
         if request.check_name not in self.players:
             return 'You entered the wrong name! Choose from: %s' % ' '.join(self.players)
@@ -206,9 +195,28 @@ class Game:
 
         for name, count in self.votes.items():
             if max_name != name and max_count == count:
-                print(self.votes, max_name)
+                # print(self.votes, max_name)
+                self.votes = dict()
                 return ''
         return max_name
 
 
+    def check_game_end(self) -> tuple:
+        alive_mafias = 0
+        alive_villagers = 0
+        for name in self.players:
+            if name in self.dead_players:
+                continue
+            if self.roles[name] == 'Mafia':
+                alive_mafias += 1
+            else:
+                alive_villagers += 1
+        return alive_mafias, alive_villagers
 
+    def append_player(self, name) -> bool:
+        if self.is_full:
+            return False
+        self.players.append(name)
+        if len(self.players) == self.max_players:
+            self.is_full = True
+        return True
