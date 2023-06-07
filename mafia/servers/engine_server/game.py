@@ -31,6 +31,8 @@ class Game:
         self.actions = 0
         self.is_full = False
         self.mafias = []
+
+        self.vote_name = ''
     
     # GAME STATE
     def count(self):
@@ -38,6 +40,8 @@ class Game:
     
     # def id(self):
     #     return self.state.id
+    def time(self):
+        return self.state.type
     
     def append_mafia(self, name):
         self.state.mafias.append(name)
@@ -45,9 +49,6 @@ class Game:
     def status(self):
         return self.state.status
     
-    def time(self):
-        return self.state.time
-
     def set_night(self):
         self.state.time = 'night'
 
@@ -123,11 +124,11 @@ class Game:
         if request.name in self.dead_players:
             return 'You are ghost!'
     
-        if self.time() != 'day':
-            return 'You can not vote now!'
+        # if self.time() != 'day':
+        #     return 'You can not vote now!'
         
         if request.vote_name in self.dead_players:
-            return '%s is already dead! Dead players: %s' % ' '.join(self.dead_players)
+            return request.vote_name + 'is already dead! Dead players:' + ' '.join(self.dead_players)
 
         if request.vote_name not in self.players:
             return 'You entered the wrong name! Choose from: %s' % ' '.join(self.players)
@@ -150,8 +151,8 @@ class Game:
         if self.roles[request.name] != 'Mafia':
             return 'You are not mafia!'
 
-        if self.time() != 'night':
-            return 'You can not kill now!'
+        # if self.time() != 'night':
+        #     return 'You can not kill now!'
         
         if request.kill_name in self.dead_players:
             return '%s is already dead! Dead players: %s' % ' '.join(self.dead_players)

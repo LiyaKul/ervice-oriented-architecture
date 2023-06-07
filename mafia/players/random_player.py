@@ -59,37 +59,44 @@ class RandomPlayer:
     
     async def kill(self):
         if self.role.role == 'Mafia':
-            return engine_pb2.KillRequest(name=self.name, kill_name=self.role.action())
+            await self.stub.Kill(self.engine_pb2.KillRequest(name=self.name, kill_name=self.role.action()))
 
     async def check(self):
         if self.role.role == 'Sheriff':
-            yield engine_pb2.CheckRequest(name=self.name, check_name=self.role.action())
+            await self.stub.Check(engine_pb2.CheckRequest(name=self.name, check_name=self.role.action()))
 
     async def vote(self):
-        return engine_pb2.VoteRequest(name=self.name, vote_name=self.role.vote())
+        print('vote')
+        await self.stub.Vote(engine_pb2.VoteRequest(name=self.name, vote_name=self.role.vote()))
     
     async def end_day(self):
-        return engine_pb2.EndDayRequest(name=self.name)
+        print('end day')
+        await self.stub.EndDay(engine_pb2.EndDayRequest(name=self.name))
     
     async def end_night(self):
-        return engine_pb2.EndNightRequest(name=self.name)
+        await self.stub.EndNight(engine_pb2.EndNightRequest(name=self.name))
     
     async def start_game(self):
         if not await self.want_to_start():
             exit()
         await self.get_players()
+        # print('start')
         while not self.game_end:
             if self.time == 'day':
-                
                 await self.vote()
+                # print('vote')
                 await self.end_day()
+                # print('end day')
                 self.time == 'night'
+                continue
             else:
+                print('night')
                 if self.role.role == 'Sheriff':
                     await self.check()
                 elif self.role.role == 'Mafia':
                     await self.kill()
                 await self.end_night()
+                self.time == 'day'
 
 
     async def get_messages(self):

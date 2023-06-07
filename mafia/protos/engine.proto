@@ -113,12 +113,11 @@ message VoteResponse {
 
 message EndDayRequest {
     string name = 1;
-    string kill_name = 2;
-    optional string text = 3;
+    optional string text = 2;
 }
 
 message EndDayResponse {
-    string name = 1;
+    bool ended = 1;
     optional string text = 2;
 }
 

@@ -25,22 +25,20 @@ class CheckResponse(_message.Message):
     def __init__(self, result: bool = ..., role: _Optional[str] = ..., text: _Optional[str] = ...) -> None: ...
 
 class EndDayRequest(_message.Message):
-    __slots__ = ["kill_name", "name", "text"]
-    KILL_NAME_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    TEXT_FIELD_NUMBER: _ClassVar[int]
-    kill_name: str
-    name: str
-    text: str
-    def __init__(self, name: _Optional[str] = ..., kill_name: _Optional[str] = ..., text: _Optional[str] = ...) -> None: ...
-
-class EndDayResponse(_message.Message):
     __slots__ = ["name", "text"]
     NAME_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     name: str
     text: str
     def __init__(self, name: _Optional[str] = ..., text: _Optional[str] = ...) -> None: ...
+
+class EndDayResponse(_message.Message):
+    __slots__ = ["ended", "text"]
+    ENDED_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    ended: bool
+    text: str
+    def __init__(self, ended: bool = ..., text: _Optional[str] = ...) -> None: ...
 
 class EndNightRequest(_message.Message):
     __slots__ = ["name", "text"]

@@ -19,9 +19,10 @@ from game import *
 from enum import Enum
 
 class Message:
-    def __init__(self, type, text):
+    def __init__(self, type, text, dead_player_name=None):
         self.type = type
         self.text = text
+        self.dead_player_name = dead_player_name
 
 class EngineServer(engine_pb2_grpc.EngineServer):
 
@@ -185,18 +186,19 @@ class EngineServer(engine_pb2_grpc.EngineServer):
         if not self.check_game(request.name):
             return engine_pb2.EndDayResponse(text='You are not in game.')
         game = self.get_game(request.name)
-        if game.time() != 'day':
-            return engine_pb2.EndDayResponse(text='It is night now.')
+        # if game.time() != 'day':
+        #     return engine_pb2.EndDayResponse(text='It is night now.')
         result = game.inc_end(request.name)
         if result == 'wait':
-            logging.info('GAME №' + game.id + ': ' + request.name + ' want to end day!')
+            logging.info('GAME №' + str(game.id) + ': ' + request.name + ' want to end day!')
             async with self.end_cond[game.id]:
                 await self.end_cond[game.id].wait()
+            vote_name = game.vote_or_kill_result()
             if vote_name == '':
                 self.messages[game.id].append(Message('info', "The day's vote failed. Peace day is declared.\nThe city goes to sleep, the mafia wakes up..."))
                 return engine_pb2.EndDayResponse(ended=True, text="The day's vote failed. Peace day is declared.\nThe city goes to sleep, the mafia wakes up...")
             else:
-                self.messages[game.id].append(Message('death', "Results of the day's voting: " + vote_name + " was killed!\nThe city goes to sleep, the mafia wakes up...", dead_player_name=vote_name))
+                self.messages[game.id].append(Message('death', "Results of the day's voting: " + vote_name + " was killed!\nThe city goes to sleep, the mafia wakes up...", vote_name))
                 return engine_pb2.EndDayResponse(ended=True, text= ": Results of the day's voting: " + vote_name + " was killed!\nThe city goes to sleep, the mafia wakes up...")
         elif result == 'start':
             logging.info('GAME №' + str(game.id) + ': ' + request.name + ' all alive players want to end day!')
@@ -212,9 +214,9 @@ class EngineServer(engine_pb2_grpc.EngineServer):
             else:
                 self.messages[game.id].append(Message('death', "Results of the day's voting: " + vote_name + " was killed!\nThe city goes to sleep, the mafia wakes up..."))
                 game.append_dead_player(vote_name)
-                alive_mafias, alive_villagers = game.check_end()
-                logging.info('GAME №' + str(game.id) + ": Alive mafias: " + alive_mafias)
-                logging.info('GAME №' + str(game.id) + ": Alive villagers: " + alive_villagers)
+                alive_mafias, alive_villagers = game.state.check_game_end()
+                logging.info('GAME №' + str(game.id) + ": Alive mafias: " + str(alive_mafias))
+                logging.info('GAME №' + str(game.id) + ": Alive villagers: " + str(alive_villagers))
                 if alive_mafias >= alive_villagers:
                     game.set_end()
                     self.messages[game.id].append(Message('end', "Mafia wins! Game ended."))
@@ -246,8 +248,8 @@ class EngineServer(engine_pb2_grpc.EngineServer):
         if not self.check_game(request.name):
             return engine_pb2.EndNightResponse(text='You are not in game.')
         game = self.get_game(request.name)
-        if game.time() != 'day':
-            return engine_pb2.EndNightResponse(text='It is day now.')
+        # if game.time() != 'night':
+        #     return engine_pb2.EndNightResponse(text='It is day now.')
         result = game.inc_end(request.name)
         if result == 'wait':
             async with self.end_cond[game.id]:
@@ -273,8 +275,8 @@ class EngineServer(engine_pb2_grpc.EngineServer):
                     logging.info('GAME №' + game.id +  ": %s was killed tonight!" % kill_name)
                     game.append_dead_player(kill_name)
                     alive_mafias, alive_villagers = game.check_end()
-                    logging.info('GAME №' + str(game.id) + ": Alive mafias: " + alive_mafias)
-                    logging.info('GAME №' + str(game.id) + ": Alive villagers: " + alive_villagers)
+                    logging.info('GAME №' + str(game.id) + ": Alive mafias: " + str(alive_mafias))
+                    logging.info('GAME №' + str(game.id) + ": Alive villagers: " + str(alive_villagers))
                     if alive_mafias >= alive_villagers:
                         game.set_end()
                         self.messages[game.id].append(Message('end', 'Mafia wins! Game ended.'))
