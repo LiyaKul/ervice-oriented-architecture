@@ -5,10 +5,16 @@ import asyncio
 from typing import AsyncIterable
 import os
 
-import mafia.protos.engine_pb2 as engine_pb2
-import mafia.protos.engine_pb2_grpc as engine_pb2_grpc
 
-from mafia.game import *
+import sys
+sys.path.append('./.')
+sys.path.append('../../../.')
+sys.path.append('../../.')
+sys.path.append('../.')
+import protos.engine_pb2 as engine_pb2
+import protos.engine_pb2_grpc as engine_pb2_grpc
+
+from game import *
 
 class Message:
     def __init__(self, type, text, dead_player_name=None):
@@ -296,7 +302,7 @@ async def serve():
     engine_pb2_grpc.add_EngineServerServicer_to_server(
         EngineServer(), server)
     
-    server.add_insecure_port('localhost:50051')
+    server.add_insecure_port('172.18.0.2:50051')
     logging.info("Starting server")
     await server.start()
     await server.wait_for_termination()

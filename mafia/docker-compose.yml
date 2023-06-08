@@ -1,8 +1,21 @@
 version: '3'
 services:
   server:
-    build: server/
+    hostname: MAFIA
+    build:
+      context: .
+      dockerfile: ServerDockerfile
     expose:
-      - 2000/udp
+      - 50051/udp
     ports:
-      - 2000:2000/udp
+      - 50051:50051/udp
+  random_player:
+    build:
+      context: .
+      dockerfile: RandomPlayerDockerfile
+    expose:
+      - 50051/udp
+    depends_on:
+      - server
+    deploy:
+      replicas: 3

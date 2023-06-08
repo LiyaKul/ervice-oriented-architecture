@@ -1,7 +1,7 @@
 from enum import Enum
 import random
 
-import mafia.protos.engine_pb2 as engine_pb2
+import protos.engine_pb2 as engine_pb2
 
 class State(Enum):
     PENDING = 1

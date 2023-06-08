@@ -5,11 +5,19 @@ import random
 import string
 from enum import Enum
 import os
+import time
 
-import mafia.protos.engine_pb2 as engine_pb2
-import mafia.protos.engine_pb2_grpc as engine_pb2_grpc
+import sys
+sys.path.append('./.')
+sys.path.append('../../../.')
+sys.path.append('../../.')
+sys.path.append('../.')
+
+import protos.engine_pb2 as engine_pb2
+import protos.engine_pb2_grpc as engine_pb2_grpc
 
 from roles import *
+
 class MessageType(Enum):
     INFO = 1
     DEATH = 2
@@ -97,8 +105,8 @@ class RandomPlayer:
         if not await self.want_to_start():
             exit()
         await self.get_players()
-        await asyncio.sleep(1)
-        for i in range(20):
+        await asyncio.sleep(3)
+        for i in range(50):
             if not self.is_alive or self.game_end:
                 break
             if self.time == 'night':
@@ -136,8 +144,9 @@ class RandomPlayer:
                 break
 
 async def main() -> None:
+    time.sleep(7)
     name = ''.join(random.choice(string.ascii_uppercase) for _ in range(7)) # https://stackoverflow.com/questions/2030053/how-to-generate-random-strings-in-python
-    async with grpc.aio.insecure_channel(os.environ.get("HOSTNAME") + ":" + os.environ.get("PORT")) as channel:
+    async with grpc.aio.insecure_channel('172.18.0.2:50051', options=(('grpc.enable_http_proxy', 0),)) as channel:
         stub =  engine_pb2_grpc.EngineServerStub(channel)
         player = RandomPlayer(stub)
         if not await player.join():

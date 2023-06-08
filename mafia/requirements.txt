@@ -1,0 +1,2 @@
+grpcio-tools==1.54.2
+google-api-python-client==2.88.0

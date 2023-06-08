@@ -5,8 +5,8 @@ import random
 import string
 from enum import Enum
 
-import mafia.protos.engine_pb2 as engine_pb2
-import mafia.protos.engine_pb2_grpc as engine_pb2_grpc
+import protos.engine_pb2 as engine_pb2
+import protos.engine_pb2_grpc as engine_pb2_grpc
 
 from roles import *
 
@@ -173,7 +173,7 @@ class Player:
                 break
 
 async def main() -> None:
-    async with grpc.aio.insecure_channel('localhost:50051') as channel:
+    async with grpc.aio.insecure_channel('172.18.0.2:50051') as channel:
         stub =  engine_pb2_grpc.EngineServerStub(channel)
         print('Enter your name.')
         name = input()

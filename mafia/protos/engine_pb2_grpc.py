@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import engine_pb2 as engine__pb2
+import protos.engine_pb2 as engine__pb2
 
 
 class EngineServerStub(object):
