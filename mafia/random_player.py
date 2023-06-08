@@ -7,12 +7,6 @@ from enum import Enum
 import os
 import time
 
-import sys
-sys.path.append('./.')
-sys.path.append('../../../.')
-sys.path.append('../../.')
-sys.path.append('../.')
-
 import protos.engine_pb2 as engine_pb2
 import protos.engine_pb2_grpc as engine_pb2_grpc
 
